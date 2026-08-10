@@ -23,6 +23,9 @@ from app.api.benchmarks import (
     router as benchmarks_router,
 )
 
+import os
+
+
 app = FastAPI(
     title="QuantLab API",
     description=(
@@ -43,6 +46,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+frontend_url = os.getenv(
+    "FRONTEND_URL",
+    "http://localhost:3000",
+)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        frontend_url,
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/health")
 def health():
