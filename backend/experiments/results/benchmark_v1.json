@@ -1,0 +1,46 @@
+{
+  "configuration": {
+    "spot": 100.0,
+    "strike": 100.0,
+    "rate": 0.05,
+    "volatility": 0.2,
+    "maturity": 1.0,
+    "dividend_yield": 0.0
+  },
+  "european_call": {
+    "black_scholes": {
+      "price": 10.450583572185565,
+      "absolute_error": 0.0,
+      "runtime_seconds": 0.0005747909999999634
+    },
+    "crr": {
+      "price": 10.448584103764572,
+      "absolute_error": 0.001999468420992301,
+      "runtime_seconds": 0.04233558300000001,
+      "steps": 1000
+    },
+    "crank_nicolson": {
+      "price": 10.440691504018025,
+      "absolute_error": 0.009892068167539847,
+      "runtime_seconds": 0.029283667000000013,
+      "space_steps": 200,
+      "time_steps": 200
+    }
+  },
+  "american_put": {
+    "crr": {
+      "price": 6.089989952552339,
+      "runtime_seconds": 0.5926654580000001,
+      "steps": 2000,
+      "early_exercise_premium": 0.5164639302953686
+    },
+    "projected_cn": {
+      "price": 6.083491104827605,
+      "absolute_error_vs_crr": 0.006498847724734524,
+      "runtime_seconds": 0.08940795900000009,
+      "space_steps": 300,
+      "time_steps": 300,
+      "early_exercise_premium": 0.5099650825706341
+    }
+  }
+}

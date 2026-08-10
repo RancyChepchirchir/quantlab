@@ -1,0 +1,31 @@
+{
+  "experiment": "american_deeponet_benchmark",
+  "queries": 1000,
+  "offline": {
+    "data_generation_seconds": 2.788443666,
+    "training_seconds": 31.381829708,
+    "total_seconds": 34.170273374000004
+  },
+  "online": {
+    "projected_cn": {
+      "total_seconds": 15.093958624999999,
+      "seconds_per_query": 0.015093958624999999,
+      "queries_per_second": 66.25167226467073
+    },
+    "deeponet": {
+      "total_seconds": 0.0006581669999974338,
+      "seconds_per_query": 6.581669999974337e-07,
+      "queries_per_second": 1519371.223418827
+    },
+    "speedup": 22933.3263822994,
+    "break_even_queries": 2263.936470958445
+  },
+  "accuracy": {
+    "mae": 0.19254747540588965,
+    "rmse": 0.25729289177246745,
+    "median_absolute_error": 0.15630067503581513,
+    "p95_absolute_error": 0.49370385319187343,
+    "max_error": 1.566316738276491,
+    "median_relative_error": 0.011750936460714335
+  }
+}

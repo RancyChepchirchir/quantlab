@@ -1,0 +1,37 @@
+{
+  "experiment": "american_deeponet",
+  "problem": {
+    "instrument": "american_put",
+    "target_solver": "projected_crank_nicolson",
+    "train_parameter_sets": 200,
+    "test_parameter_sets": 50,
+    "spot_points_per_set": 40
+  },
+  "model": {
+    "architecture": "deeponet",
+    "branch_variables": [
+      "strike",
+      "rate",
+      "volatility",
+      "maturity",
+      "dividend_yield"
+    ],
+    "trunk_variables": [
+      "spot",
+      "time"
+    ]
+  },
+  "metrics": {
+    "mae": 0.19912151992321014,
+    "rmse": 0.25973156094551086,
+    "median_error": 0.16165685653686523,
+    "p95_error": 0.538324236869812,
+    "max_error": 1.2326812744140625,
+    "training_seconds": 28.241335499999998,
+    "final_loss": 0.01815735274553299
+  },
+  "artifacts": {
+    "training_plot": "experiments/american_deeponet_loss.png",
+    "prediction_plot": "experiments/american_deeponet_predictions.png"
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "experiment": "american_pinn_v1_vs_v2",
+  "problem": {
+    "instrument": "american_put",
+    "benchmark": "crr",
+    "spot": 100.0,
+    "strike": 100.0,
+    "rate": 0.05,
+    "volatility": 0.2,
+    "maturity": 1.0,
+    "dividend_yield": 0.0,
+    "evaluation_spot_min": 50.0,
+    "evaluation_spot_max": 150.0,
+    "evaluation_points": 101
+  },
+  "methods": {
+    "crr": {
+      "role": "benchmark",
+      "mae": 0.0,
+      "rmse": 0.0,
+      "max_error": 0.0,
+      "atm_error": 0.0,
+      "runtime_seconds": 60.100227667000006,
+      "atm_price": 6.089989952552339
+    },
+    "projected_cn": {
+      "role": "classical_solver",
+      "mae": 0.0013858290483808671,
+      "rmse": 0.0023993224380312443,
+      "max_error": 0.008078047615797779,
+      "atm_error": 0.006498847724734524,
+      "runtime_seconds": 0.0936067499999993,
+      "atm_price": 6.083491104827605
+    },
+    "pinn_v1": {
+      "role": "scientific_ml",
+      "formulation": "obstacle_penalty",
+      "mae": 0.5778994438921923,
+      "rmse": 0.9079859912922174,
+      "max_error": 1.7047405242919922,
+      "atm_error": 0.09684819747207474,
+      "training_seconds": 26.088654458,
+      "inference_seconds": 0.005284333000005859,
+      "final_loss": 21.08833885192871,
+      "atm_price": 6.186838150024414
+    },
+    "pinn_v2": {
+      "role": "scientific_ml",
+      "formulation": "fischer_burmeister",
+      "mae": 0.12401282969229721,
+      "rmse": 0.14875050839577675,
+      "max_error": 0.3573799133300781,
+      "atm_error": 0.12938708831069778,
+      "training_seconds": 46.435322291999995,
+      "inference_seconds": 0.005918542000017624,
+      "final_loss": 1.3745050430297852,
+      "atm_price": 6.219377040863037
+    }
+  },
+  "artifacts": {
+    "solution_plot": "experiments/american_pinn_v1_vs_v2_solution.png",
+    "error_plot": "experiments/american_pinn_v1_vs_v2_error.png",
+    "training_plot": "experiments/american_pinn_v1_vs_v2_training.png"
+  }
+}
