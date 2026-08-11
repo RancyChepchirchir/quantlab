@@ -22,6 +22,12 @@ from app.api.pricing import (
     to_inputs,
 )
 
+import logging
+
+logger = logging.getLogger(
+    "quantlab.compare"
+)
+
 
 router = APIRouter(
     tags=["comparison"],
@@ -42,116 +48,220 @@ MC_SIMULATIONS = 50_000
 def compare_methods(
     request: PricingRequest,
 ):
+    logger.info(
+        "COMPARE START "
+        "spot=%s strike=%s type=%s",
+        request.spot,
+        request.strike,
+        request.option_type,
+    )
+
     inputs = to_inputs(request)
 
     # ---------------------------------------------------------
-    # Black-Scholes analytical benchmark
+    # Black-Scholes
     # ---------------------------------------------------------
+
+    logger.info(
+        "COMPARE: starting Black-Scholes"
+    )
 
     start = perf_counter()
 
     if request.option_type == "call":
-        bs_price = european_call(inputs)
+        bs_price = european_call(
+            inputs
+        )
     else:
-        bs_price = european_put(inputs)
+        bs_price = european_put(
+            inputs
+        )
 
-    bs_runtime = perf_counter() - start
+    bs_runtime = (
+        perf_counter() - start
+    )
+
+    logger.info(
+        "COMPARE: Black-Scholes complete "
+        "runtime=%.6fs price=%.6f",
+        bs_runtime,
+        bs_price,
+    )
 
     # ---------------------------------------------------------
-    # CRR binomial
+    # CRR
     # ---------------------------------------------------------
+
+    logger.info(
+        "COMPARE: starting CRR "
+        "steps=%s",
+        CRR_STEPS,
+    )
 
     start = perf_counter()
 
     crr = binomial_price(
         inputs,
-        option_type=request.option_type,
+        option_type=
+            request.option_type,
         steps=CRR_STEPS,
         american=False,
     )
 
-    crr_runtime = perf_counter() - start
+    crr_runtime = (
+        perf_counter() - start
+    )
+
+    logger.info(
+        "COMPARE: CRR complete "
+        "runtime=%.6fs price=%.6f",
+        crr_runtime,
+        crr.price,
+    )
 
     # ---------------------------------------------------------
-    # Crank-Nicolson finite difference
+    # Crank-Nicolson
     # ---------------------------------------------------------
+
+    logger.info(
+        "COMPARE: starting CN "
+        "space_steps=%s "
+        "time_steps=%s",
+        CN_SPACE_STEPS,
+        CN_TIME_STEPS,
+    )
 
     start = perf_counter()
 
     cn = crank_nicolson_price(
         inputs,
-        option_type=request.option_type,
-        space_steps=CN_SPACE_STEPS,
-        time_steps=CN_TIME_STEPS,
+        option_type=
+            request.option_type,
+        space_steps=
+            CN_SPACE_STEPS,
+        time_steps=
+            CN_TIME_STEPS,
     )
 
-    cn_runtime = perf_counter() - start
+    cn_runtime = (
+        perf_counter() - start
+    )
+
+    logger.info(
+        "COMPARE: CN complete "
+        "runtime=%.6fs price=%.6f",
+        cn_runtime,
+        cn.price,
+    )
 
     # ---------------------------------------------------------
     # Monte Carlo
     # ---------------------------------------------------------
 
+    logger.info(
+        "COMPARE: starting Monte Carlo "
+        "simulations=%s",
+        MC_SIMULATIONS,
+    )
+
     start = perf_counter()
 
     mc = monte_carlo_price(
         inputs,
-        option_type=request.option_type,
-        simulations=MC_SIMULATIONS,
+        option_type=
+            request.option_type,
+        simulations=
+            MC_SIMULATIONS,
         seed=42,
     )
 
-    mc_runtime = perf_counter() - start
+    mc_runtime = (
+        perf_counter() - start
+    )
 
-    # ---------------------------------------------------------
-    # Response
-    # ---------------------------------------------------------
+    logger.info(
+        "COMPARE: Monte Carlo complete "
+        "runtime=%.6fs price=%.6f",
+        mc_runtime,
+        mc.price,
+    )
+
+    logger.info(
+        "COMPARE END successfully"
+    )
 
     return {
         "input": {
-            "spot": request.spot,
-            "strike": request.strike,
-            "rate": request.rate,
-            "volatility": request.volatility,
-            "maturity": request.maturity,
-            "dividend_yield": request.dividend_yield,
-            "option_type": request.option_type,
+            "spot":
+                request.spot,
+            "strike":
+                request.strike,
+            "rate":
+                request.rate,
+            "volatility":
+                request.volatility,
+            "maturity":
+                request.maturity,
+            "dividend_yield":
+                request.dividend_yield,
+            "option_type":
+                request.option_type,
         },
 
         "black_scholes": {
-            "price": bs_price,
-            "runtime_seconds": bs_runtime,
+            "price":
+                bs_price,
+            "runtime_seconds":
+                bs_runtime,
         },
 
         "binomial": {
-            "price": crr.price,
-            "steps": crr.steps,
-            "absolute_error": abs(
-                crr.price - bs_price
-            ),
-            "runtime_seconds": crr_runtime,
+            "price":
+                crr.price,
+            "steps":
+                crr.steps,
+            "absolute_error":
+                abs(
+                    crr.price
+                    - bs_price
+                ),
+            "runtime_seconds":
+                crr_runtime,
         },
 
         "finite_difference": {
-            "price": cn.price,
-            "space_steps": CN_SPACE_STEPS,
-            "time_steps": CN_TIME_STEPS,
-            "absolute_error": abs(
-                cn.price - bs_price
-            ),
-            "runtime_seconds": cn_runtime,
+            "price":
+                cn.price,
+            "space_steps":
+                CN_SPACE_STEPS,
+            "time_steps":
+                CN_TIME_STEPS,
+            "absolute_error":
+                abs(
+                    cn.price
+                    - bs_price
+                ),
+            "runtime_seconds":
+                cn_runtime,
         },
 
         "monte_carlo": {
-            "price": mc.price,
-            "simulations": mc.simulations,
-            "standard_error": mc.standard_error,
+            "price":
+                mc.price,
+            "simulations":
+                mc.simulations,
+            "standard_error":
+                mc.standard_error,
             "confidence_interval": [
                 mc.confidence_low,
                 mc.confidence_high,
             ],
-            "absolute_error": abs(
-                mc.price - bs_price
-            ),
-            "runtime_seconds": mc_runtime,
+            "absolute_error":
+                abs(
+                    mc.price
+                    - bs_price
+                ),
+            "runtime_seconds":
+                mc_runtime,
         },
     }
