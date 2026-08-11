@@ -17,6 +17,86 @@ class FiniteDifferenceResult:
     value_grid: np.ndarray
     time_grid: np.ndarray
 
+def solve_tridiagonal(
+    lower: np.ndarray,
+    diag: np.ndarray,
+    upper: np.ndarray,
+    rhs: np.ndarray,
+) -> np.ndarray:
+    """
+    Solve a tridiagonal linear system using
+    the Thomas algorithm.
+
+    lower[i] is the sub-diagonal entry for row i.
+    diag[i] is the diagonal entry.
+    upper[i] is the super-diagonal entry.
+    """
+
+    n = len(diag)
+
+    c_prime = np.zeros(
+        n,
+        dtype=float,
+    )
+
+    d_prime = np.zeros(
+        n,
+        dtype=float,
+    )
+
+    c_prime[0] = (
+        upper[0]
+        / diag[0]
+    )
+
+    d_prime[0] = (
+        rhs[0]
+        / diag[0]
+    )
+
+    for i in range(
+        1,
+        n,
+    ):
+        denominator = (
+            diag[i]
+            - lower[i]
+            * c_prime[i - 1]
+        )
+
+        if i < n - 1:
+            c_prime[i] = (
+                upper[i]
+                / denominator
+            )
+
+        d_prime[i] = (
+            rhs[i]
+            - lower[i]
+            * d_prime[i - 1]
+        ) / denominator
+
+    solution = np.zeros(
+        n,
+        dtype=float,
+    )
+
+    solution[-1] = (
+        d_prime[-1]
+    )
+
+    for i in range(
+        n - 2,
+        -1,
+        -1,
+    ):
+        solution[i] = (
+            d_prime[i]
+            - c_prime[i]
+            * solution[i + 1]
+        )
+
+    return solution
 
 def crank_nicolson_price(
     inputs: OptionInputs,
@@ -173,53 +253,6 @@ def crank_nicolson_price(
         diag_rhs[j] = 1.0 + b
         upper_rhs[j] = c
 
-    lhs = np.zeros(
-        (
-            interior_count,
-            interior_count,
-        )
-    )
-
-    rhs_matrix = np.zeros(
-        (
-            interior_count,
-            interior_count,
-        )
-    )
-
-    for j in range(
-        interior_count
-    ):
-        lhs[j, j] = diag[j]
-        rhs_matrix[
-            j,
-            j,
-        ] = diag_rhs[j]
-
-        if j > 0:
-            lhs[
-                j,
-                j - 1,
-            ] = lower[j]
-
-            rhs_matrix[
-                j,
-                j - 1,
-            ] = lower_rhs[j]
-
-        if j < (
-            interior_count - 1
-        ):
-            lhs[
-                j,
-                j + 1,
-            ] = upper[j]
-
-            rhs_matrix[
-                j,
-                j + 1,
-            ] = upper_rhs[j]
-
     for n in range(
         time_steps - 1,
         -1,
@@ -266,9 +299,20 @@ def crank_nicolson_price(
         )
 
         rhs = (
-            rhs_matrix
-            @ next_values
+            diag_rhs
+            * next_values
         )
+
+        if interior_count > 1:
+            rhs[1:] += (
+                lower_rhs[1:]
+                * next_values[:-1]
+            )
+
+            rhs[:-1] += (
+                upper_rhs[:-1]
+                * next_values[1:]
+            )
 
         # Boundary contributions
         if interior_count > 0:
@@ -295,8 +339,10 @@ def crank_nicolson_price(
         values[
             n,
             1:-1,
-        ] = np.linalg.solve(
-            lhs,
+        ] = solve_tridiagonal(
+            lower,
+            diag,
+            upper,
             rhs,
         )
 
