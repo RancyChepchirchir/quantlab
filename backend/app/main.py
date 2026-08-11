@@ -25,6 +25,10 @@ from app.api.benchmarks import (
 
 import os
 
+from app.api.implied_volatility import (
+    router as implied_volatility_router,
+)
+
 
 app = FastAPI(
     title="QuantLab API",
@@ -88,4 +92,8 @@ app.include_router(
 
 app.include_router(
     benchmarks_router
+)
+
+app.include_router(
+    implied_volatility_router
 )
