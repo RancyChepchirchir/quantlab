@@ -4,6 +4,37 @@
 
 QuantLab combines a Python/FastAPI numerical backend with a Next.js research interface.
 
+## Live application
+
+Frontend:
+https://YOUR-VERCEL-DOMAIN
+
+API:
+https://quantlab-production-38f0.up.railway.app
+
+API docs:
+https://quantlab-production-38f0.up.railway.app/docs
+
+---
+Frontend:
+
+```bash
+cd frontend
+npm run lint
+npm run build
+```
+
+---
+
+## Numerical implementation note
+
+The Crank–Nicolson solvers use tridiagonal linear-system
+solves rather than generic dense `numpy.linalg.solve` calls.
+
+This preserves the finite-difference formulation while
+reducing computational cost and improving deployment
+performance on constrained cloud runtimes.
+
 It is designed around one question:
 
 > **When should we prefer closed-form methods, classical numerical solvers, physics-informed neural networks, or learned solution operators?**
@@ -265,16 +296,6 @@ Backend:
 cd backend
 PYTHONPATH=. pytest -v
 ```
-
-Frontend:
-
-```bash
-cd frontend
-npm run lint
-npm run build
-```
-
----
 
 ## Research direction
 
