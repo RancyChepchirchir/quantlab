@@ -11,18 +11,18 @@
     "black_scholes": {
       "price": 10.450583572185565,
       "absolute_error": 0.0,
-      "runtime_seconds": 0.0005747909999999634
+      "runtime_seconds": 0.00021100000000001673
     },
     "crr": {
       "price": 10.448584103764572,
       "absolute_error": 0.001999468420992301,
-      "runtime_seconds": 0.04233558300000001,
+      "runtime_seconds": 0.05735233300000003,
       "steps": 1000
     },
     "crank_nicolson": {
-      "price": 10.440691504018025,
-      "absolute_error": 0.009892068167539847,
-      "runtime_seconds": 0.029283667000000013,
+      "price": 10.44069150401804,
+      "absolute_error": 0.00989206816752386,
+      "runtime_seconds": 0.02469641699999997,
       "space_steps": 200,
       "time_steps": 200
     }
@@ -30,17 +30,17 @@
   "american_put": {
     "crr": {
       "price": 6.089989952552339,
-      "runtime_seconds": 0.5926654580000001,
+      "runtime_seconds": 0.5845855,
       "steps": 2000,
       "early_exercise_premium": 0.5164639302953686
     },
     "projected_cn": {
-      "price": 6.083491104827605,
-      "absolute_error_vs_crr": 0.006498847724734524,
-      "runtime_seconds": 0.08940795900000009,
+      "price": 6.08349110482761,
+      "absolute_error_vs_crr": 0.006498847724729195,
+      "runtime_seconds": 0.05612562499999996,
       "space_steps": 300,
       "time_steps": 300,
-      "early_exercise_premium": 0.5099650825706341
+      "early_exercise_premium": 0.5099650825706394
     }
   }
 }
