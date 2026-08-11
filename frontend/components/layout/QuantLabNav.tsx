@@ -10,6 +10,10 @@ const links = [
     href: "/research-lab",
     label: "Research Lab",
   },
+  {
+    href: "/volatility-lab",
+    label: "Volatility Lab",
+},
 ];
 
 
