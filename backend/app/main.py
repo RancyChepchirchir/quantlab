@@ -33,6 +33,10 @@ from app.api.volatility_surface import (
     router as volatility_surface_router,
 )
 
+from app.api.market_data import (
+    router as market_data_router,
+)
+
 
 app = FastAPI(
     title="QuantLab API",
@@ -104,4 +108,8 @@ app.include_router(
 
 app.include_router(
     volatility_surface_router
+)
+
+app.include_router(
+    market_data_router
 )
