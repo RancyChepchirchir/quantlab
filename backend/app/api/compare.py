@@ -48,54 +48,45 @@ MC_SIMULATIONS = 50_000
 def compare_methods(
     request: PricingRequest,
 ):
-    logger.info(
-        "COMPARE START "
-        "spot=%s strike=%s type=%s",
-        request.spot,
-        request.strike,
-        request.option_type,
+    print(
+        f"COMPARE START "
+        f"spot={request.spot} "
+        f"strike={request.strike} "
+        f"type={request.option_type}",
+        flush=True,
     )
 
     inputs = to_inputs(request)
 
-    # ---------------------------------------------------------
-    # Black-Scholes
-    # ---------------------------------------------------------
-
-    logger.info(
-        "COMPARE: starting Black-Scholes"
+    print(
+        "COMPARE: starting Black-Scholes",
+        flush=True,
     )
 
     start = perf_counter()
 
     if request.option_type == "call":
-        bs_price = european_call(
-            inputs
-        )
+        bs_price = european_call(inputs)
     else:
-        bs_price = european_put(
-            inputs
-        )
+        bs_price = european_put(inputs)
 
-    bs_runtime = (
-        perf_counter() - start
-    )
+    bs_runtime = perf_counter() - start
 
-    logger.info(
-        "COMPARE: Black-Scholes complete "
-        "runtime=%.6fs price=%.6f",
-        bs_runtime,
-        bs_price,
+    print(
+        f"COMPARE: Black-Scholes complete "
+        f"runtime={bs_runtime:.6f}s",
+        flush=True,
     )
 
     # ---------------------------------------------------------
     # CRR
     # ---------------------------------------------------------
 
-    logger.info(
+    print(
         "COMPARE: starting CRR "
         "steps=%s",
         CRR_STEPS,
+        flush=True,
     )
 
     start = perf_counter()
@@ -112,23 +103,23 @@ def compare_methods(
         perf_counter() - start
     )
 
-    logger.info(
-        "COMPARE: CRR complete "
-        "runtime=%.6fs price=%.6f",
-        crr_runtime,
-        crr.price,
+    print(
+        f"COMPARE: CRR complete "
+        f"runtime={crr_runtime:.6f}s price={crr.price:.6f}",
+        flush=True,
     )
 
     # ---------------------------------------------------------
     # Crank-Nicolson
     # ---------------------------------------------------------
 
-    logger.info(
+    print(
         "COMPARE: starting CN "
         "space_steps=%s "
         "time_steps=%s",
         CN_SPACE_STEPS,
         CN_TIME_STEPS,
+        flush=True,
     )
 
     start = perf_counter()
@@ -147,22 +138,22 @@ def compare_methods(
         perf_counter() - start
     )
 
-    logger.info(
-        "COMPARE: CN complete "
-        "runtime=%.6fs price=%.6f",
-        cn_runtime,
-        cn.price,
+    print(
+        f"COMPARE: CN complete "
+        f"runtime={cn_runtime:.6f}s price={cn.price:.6f}",
+        flush=True,
     )
 
     # ---------------------------------------------------------
     # Monte Carlo
     # ---------------------------------------------------------
 
-    logger.info(
-        "COMPARE: starting Monte Carlo "
-        "simulations=%s",
-        MC_SIMULATIONS,
+    print(
+        f"COMPARE: starting Monte Carlo "
+        f"simulations={MC_SIMULATIONS}",
+        flush=True,
     )
+    
 
     start = perf_counter()
 
@@ -179,15 +170,15 @@ def compare_methods(
         perf_counter() - start
     )
 
-    logger.info(
-        "COMPARE: Monte Carlo complete "
-        "runtime=%.6fs price=%.6f",
-        mc_runtime,
-        mc.price,
+    print(
+        f"COMPARE: Monte Carlo complete "
+        f"runtime={mc_runtime:.6f}s price={mc.price:.6f}",
+        flush=True,
     )
 
-    logger.info(
-        "COMPARE END successfully"
+    print(
+        "COMPARE END successfully",
+        flush=True,
     )
 
     return {
