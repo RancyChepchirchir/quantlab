@@ -186,40 +186,87 @@ export default function Home() {
 
 
   async function handleSubmit(
-    event: FormEvent
-  ) {
-    event.preventDefault();
+  event: FormEvent
+) {
+  event.preventDefault();
 
-    setLoading(true);
-    setError(null);
-
-    try {
-      const [
-        comparisonData,
-        greeksData,
-        sweepData,
-        convergenceData,
-      ] = await Promise.all([
-        compareModels(input),
-        getGreeks(input),
-        getSpotSweep(input),
-        getConvergence(input),
-      ]);
-
-      setResult(comparisonData);
-      setGreeks(greeksData);
-      setSweep(sweepData);
-      setConvergence(convergenceData);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Pricing failed."
-      );
-    } finally {
-      setLoading(false);
-    }
+  // Prevent overlapping submissions.
+  if (loading) {
+    return;
   }
+
+  setLoading(true);
+  setError(null);
+
+  // Clear secondary analysis from the previous run.
+  setGreeks(null);
+  setSweep(null);
+  setConvergence(null);
+
+  try {
+    // -------------------------------------------------
+    // 1. Core pricing comparison
+    // -------------------------------------------------
+    // This controls the main "Pricing..." state.
+    const comparisonData =
+      await compareModels(input);
+
+    setResult(comparisonData);
+
+    // The main pricing calculation is finished.
+    setLoading(false);
+
+    // -------------------------------------------------
+    // 2. Secondary analyses
+    // -------------------------------------------------
+    // These now load independently.
+    void getGreeks(input)
+      .then((data) => {
+        setGreeks(data);
+      })
+      .catch((err) => {
+        console.error(
+          "Greeks request failed:",
+          err
+        );
+      });
+
+    void getSpotSweep(input)
+      .then((data) => {
+        setSweep(data);
+      })
+      .catch((err) => {
+        console.error(
+          "Spot sweep request failed:",
+          err
+        );
+      });
+
+    void getConvergence(input)
+      .then((data) => {
+        setConvergence(data);
+      })
+      .catch((err) => {
+        console.error(
+          "Convergence request failed:",
+          err
+        );
+      });
+  } catch (err) {
+    console.error(
+      "Comparison request failed:",
+      err
+    );
+
+    setError(
+      err instanceof Error
+        ? err.message
+        : "Pricing failed."
+    );
+
+    setLoading(false);
+  }
+}
 
   const crrConvergenceData =
   convergence?.crr.map(
