@@ -27,38 +27,53 @@ router = APIRouter(
 )
 
 
+# Production convergence grid.
+#
+# Large-scale experiments belong in experiments/.
+# The API only needs enough points to demonstrate
+# deterministic and stochastic convergence clearly.
+
+CRR_STEPS = [
+    10,
+    25,
+    50,
+    100,
+    250,
+    500,
+]
+
+MC_SIMULATIONS = [
+    100,
+    1_000,
+    5_000,
+    10_000,
+    50_000,
+    100_000,
+]
+
+
 @router.post("")
 def convergence_analysis(
     request: PricingRequest,
 ):
     inputs = to_inputs(request)
 
+    # ---------------------------------------------------------
+    # Analytical benchmark
+    # ---------------------------------------------------------
+
     if request.option_type == "call":
         benchmark = european_call(inputs)
     else:
         benchmark = european_put(inputs)
 
-    crr_steps = [
-        10,
-        25,
-        50,
-        100,
-        250,
-        500,
-        1000,
-    ]
-
-    mc_simulations = [
-        100,
-        1_000,
-        10_000,
-        100_000,
-        1_000_000,
-    ]
+    # ---------------------------------------------------------
+    # CRR convergence
+    # ---------------------------------------------------------
 
     crr_results = []
 
-    for steps in crr_steps:
+    for steps in CRR_STEPS:
         start = perf_counter()
 
         result = binomial_price(
@@ -70,18 +85,24 @@ def convergence_analysis(
 
         runtime = perf_counter() - start
 
-        crr_results.append({
-            "steps": steps,
-            "price": result.price,
-            "absolute_error":
-                abs(result.price - benchmark),
-            "runtime_seconds":
-                runtime,
-        })
+        crr_results.append(
+            {
+                "steps": steps,
+                "price": result.price,
+                "absolute_error": abs(
+                    result.price - benchmark
+                ),
+                "runtime_seconds": runtime,
+            }
+        )
+
+    # ---------------------------------------------------------
+    # Monte Carlo convergence
+    # ---------------------------------------------------------
 
     mc_results = []
 
-    for simulations in mc_simulations:
+    for simulations in MC_SIMULATIONS:
         start = perf_counter()
 
         result = monte_carlo_price(
@@ -93,56 +114,62 @@ def convergence_analysis(
 
         runtime = perf_counter() - start
 
-        mc_results.append({
-            "simulations":
-                simulations,
-            "price":
-                result.price,
-            "absolute_error":
-                abs(
-                    result.price
-                    - benchmark
+        mc_results.append(
+            {
+                "simulations": simulations,
+                "price": result.price,
+                "absolute_error": abs(
+                    result.price - benchmark
                 ),
-            "standard_error":
-                result.standard_error,
-            "confidence_low":
-                result.confidence_low,
-            "confidence_high":
-                result.confidence_high,
-            "runtime_seconds":
-                runtime,
-        })
+                "standard_error":
+                    result.standard_error,
+                "confidence_low":
+                    result.confidence_low,
+                "confidence_high":
+                    result.confidence_high,
+                "runtime_seconds":
+                    runtime,
+            }
+        )
+
+    # ---------------------------------------------------------
+    # Theoretical Monte Carlo convergence
+    #
+    # Standard Monte Carlo error decreases approximately
+    # according to:
+    #
+    #              error ~ 1 / sqrt(N)
+    #
+    # We scale the theoretical curve using the first
+    # empirical standard error.
+    # ---------------------------------------------------------
 
     reference_scale = (
-        mc_results[0][
-            "standard_error"
-        ]
+        mc_results[0]["standard_error"]
         * sqrt(
-            mc_results[0][
-                "simulations"
-            ]
+            mc_results[0]["simulations"]
         )
     )
 
     for item in mc_results:
-        item[
-            "theoretical_error"
-        ] = (
+        item["theoretical_error"] = (
             reference_scale
             / sqrt(
                 item["simulations"]
             )
         )
 
+    # ---------------------------------------------------------
+    # Response
+    # ---------------------------------------------------------
+
     return {
         "benchmark": {
-            "method":
-                "black-scholes",
-            "price":
-                benchmark,
+            "method": "black-scholes",
+            "price": benchmark,
         },
-        "crr":
-            crr_results,
-        "monte_carlo":
-            mc_results,
+
+        "crr": crr_results,
+
+        "monte_carlo": mc_results,
     }
