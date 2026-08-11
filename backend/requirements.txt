@@ -2,4 +2,4 @@ fastapi
 uvicorn[standard]
 numpy
 scipy
-pydantic
+pydanticrequests>=2.32,<3

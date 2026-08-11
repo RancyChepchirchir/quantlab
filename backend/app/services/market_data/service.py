@@ -10,6 +10,10 @@ from app.services.market_data.types import (
     OptionChainSnapshot,
 )
 
+from app.services.market_data.providers.alpha_vantage import (
+    AlphaVantageOptionChainProvider,
+)
+
 
 def get_provider(
     name: str = "mock",
@@ -24,6 +28,14 @@ def get_provider(
     if normalized == "mock":
         return (
             MockOptionChainProvider()
+        )
+
+    if normalized in {
+        "alpha_vantage",
+        "alphavantage",
+    }:
+        return (
+            AlphaVantageOptionChainProvider()
         )
 
     raise ValueError(

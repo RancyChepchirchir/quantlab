@@ -1,7 +1,9 @@
+import pytest
+
 from app.services.market_data.service import (
     get_option_chain,
+    get_provider,
 )
-
 
 def test_mock_option_chain():
     snapshot = get_option_chain(
@@ -31,4 +33,29 @@ def test_mock_quotes_have_spreads():
         assert (
             quote.ask
             >= quote.bid
+        )
+
+
+def test_unknown_provider_rejected():
+    with pytest.raises(
+        ValueError
+    ):
+        get_provider(
+            "does_not_exist"
+        )
+
+
+def test_alpha_vantage_requires_key(
+    monkeypatch,
+):
+    monkeypatch.delenv(
+        "ALPHA_VANTAGE_API_KEY",
+        raising=False,
+    )
+
+    with pytest.raises(
+        ValueError
+    ):
+        get_provider(
+            "alpha_vantage"
         )
