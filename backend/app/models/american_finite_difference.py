@@ -1,11 +1,14 @@
 from dataclasses import dataclass
-from math import exp
 from typing import Optional
 
 import numpy as np
 
 from app.models.black_scholes import (
     OptionInputs,
+)
+
+from app.models.finite_difference import (
+    solve_tridiagonal,
 )
 
 
@@ -146,50 +149,6 @@ def projected_crank_nicolson_put(
         diag_rhs[j] = 1.0 + b
         upper_rhs[j] = c
 
-    lhs = np.zeros(
-        (
-            interior_count,
-            interior_count,
-        )
-    )
-
-    rhs_matrix = np.zeros(
-        (
-            interior_count,
-            interior_count,
-        )
-    )
-
-    for j in range(
-        interior_count
-    ):
-        lhs[j, j] = diag[j]
-        rhs_matrix[j, j] = (
-            diag_rhs[j]
-        )
-
-        if j > 0:
-            lhs[j, j - 1] = (
-                lower[j]
-            )
-
-            rhs_matrix[
-                j,
-                j - 1,
-            ] = lower_rhs[j]
-
-        if j < (
-            interior_count - 1
-        ):
-            lhs[j, j + 1] = (
-                upper[j]
-            )
-
-            rhs_matrix[
-                j,
-                j + 1,
-            ] = upper_rhs[j]
-
     for n in range(
         time_steps - 1,
         -1,
@@ -215,13 +174,27 @@ def projected_crank_nicolson_put(
             -1,
         ] = upper_boundary
 
+
+        next_values = values[
+            n + 1,
+            1:-1,
+        ]
+
         rhs = (
-            rhs_matrix
-            @ values[
-                n + 1,
-                1:-1,
-            ]
+            diag_rhs
+            * next_values
         )
+
+        if interior_count > 1:
+            rhs[1:] += (
+                lower_rhs[1:]
+                * next_values[:-1]
+            )
+
+            rhs[:-1] += (
+                upper_rhs[:-1]
+                * next_values[1:]
+            )
 
         rhs[0] += (
             lower_rhs[0]
@@ -244,8 +217,10 @@ def projected_crank_nicolson_put(
         )
 
         continuation = (
-            np.linalg.solve(
-                lhs,
+            solve_tridiagonal(
+                lower,
+                diag,
+                upper,
                 rhs,
             )
         )
