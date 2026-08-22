@@ -4,15 +4,22 @@ on:
   push:
     branches:
       - main
+      - master
+      - develop
 
   pull_request:
-    branches:
-      - main
+
+concurrency:
+  group: >
+    quantlab-ci-${{ github.workflow }}-${{ github.ref }}
+
+  cancel-in-progress: true
 
 
 jobs:
   backend:
-    name: Backend tests
+    name: Backend Tests
+
     runs-on: ubuntu-latest
 
     defaults:
@@ -21,29 +28,46 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
-          cache: "pip"
-          cache-dependency-path: backend/requirements.txt
+          python-version: "3.9"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+
+      - name: Upgrade pip
+        run: |
+          python -m pip install --upgrade pip
 
       - name: Install backend dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          pip install -r requirements.txt
+
+      - name: Install test tooling
+        run: |
+          pip install pytest
+
+      - name: Compile application
+        run: |
+          python -m compileall \
+            -q \
+            app
 
       - name: Run backend tests
         env:
           PYTHONPATH: .
         run: |
-          pytest -v
+          pytest \
+            -v \
+            --tb=short
 
 
   frontend:
-    name: Frontend build
+    name: Frontend Lint & Build
+
     runs-on: ubuntu-latest
 
     defaults:
@@ -52,22 +76,312 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
-          node-version: "22"
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
 
       - name: Install frontend dependencies
-        run: npm ci
+        run: |
+          npm ci
 
       - name: Run ESLint
-        run: npm run lint
+        run: |
+          npm run lint
 
       - name: Build frontend
         env:
           NEXT_PUBLIC_API_URL: http://127.0.0.1:8000
-        run: npm run build
+        run: |
+          npm run build
+
+
+  integration:
+    name: Backend API Smoke Test
+
+    runs-on: ubuntu-latest
+
+    needs:
+      - backend
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+          cache: pip
+          cache-dependency-path: |
+            backend/requirements.txt
+
+      - name: Upgrade pip
+        run: |
+          python -m pip install --upgrade pip
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Start FastAPI
+        env:
+          PYTHONPATH: .
+        run: |
+          uvicorn app.main:app \
+            --host 127.0.0.1 \
+            --port 8000 \
+            > /tmp/quantlab-api.log 2>&1 &
+
+          echo $! > /tmp/quantlab-api.pid
+
+      - name: Wait for API
+        run: |
+          python - <<'PY'
+          import time
+          import urllib.request
+
+          url = "http://127.0.0.1:8000/"
+
+          for attempt in range(30):
+              try:
+                  with urllib.request.urlopen(
+                      url,
+                      timeout=2,
+                  ) as response:
+                      print(
+                          "API status:",
+                          response.status,
+                      )
+                      break
+
+              except Exception as error:
+                  print(
+                      f"Waiting for API "
+                      f"({attempt + 1}/30): "
+                      f"{error}"
+                  )
+
+                  time.sleep(1)
+
+          else:
+              raise SystemExit(
+                  "FastAPI did not start "
+                  "within 30 seconds."
+              )
+          PY
+
+      - name: Test volatility calibration endpoint
+        run: |
+          python - <<'PY'
+          import json
+          import urllib.request
+
+          payload = {
+              "spot": 100.0,
+              "rate": 0.05,
+              "dividend_yield": 0.0,
+              "quotes": [
+                  {
+                      "strike": 90.0,
+                      "maturity": 0.5,
+                      "market_price": 13.50,
+                      "option_type": "call",
+                  },
+                  {
+                      "strike": 100.0,
+                      "maturity": 0.5,
+                      "market_price": 6.90,
+                      "option_type": "call",
+                  },
+                  {
+                      "strike": 110.0,
+                      "maturity": 0.5,
+                      "market_price": 2.90,
+                      "option_type": "call",
+                  },
+                  {
+                      "strike": 90.0,
+                      "maturity": 1.0,
+                      "market_price": 17.10,
+                      "option_type": "call",
+                  },
+                  {
+                      "strike": 100.0,
+                      "maturity": 1.0,
+                      "market_price": 10.80,
+                      "option_type": "call",
+                  },
+                  {
+                      "strike": 110.0,
+                      "maturity": 1.0,
+                      "market_price": 6.30,
+                      "option_type": "call",
+                  },
+              ],
+          }
+
+          request = urllib.request.Request(
+              (
+                  "http://127.0.0.1:8000"
+                  "/calibration/volatility-surface"
+              ),
+              data=json.dumps(
+                  payload
+              ).encode(
+                  "utf-8"
+              ),
+              headers={
+                  "Content-Type":
+                      "application/json",
+              },
+              method="POST",
+          )
+
+          with urllib.request.urlopen(
+              request,
+              timeout=60,
+          ) as response:
+              result = json.loads(
+                  response
+                  .read()
+                  .decode(
+                      "utf-8"
+                  )
+              )
+
+          required_top_level = {
+              "quote_count",
+              "calibrated_count",
+              "diagnostics",
+              "surface_grid",
+              "svi",
+          }
+
+          missing = (
+              required_top_level
+              - result.keys()
+          )
+
+          if missing:
+              raise AssertionError(
+                  "Missing response fields: "
+                  f"{sorted(missing)}"
+              )
+
+          if (
+              result[
+                  "calibrated_count"
+              ]
+              <= 0
+          ):
+              raise AssertionError(
+                  "Expected calibrated "
+                  "option quotes."
+              )
+
+          svi = result[
+              "svi"
+          ]
+
+          required_svi = {
+              "fitted_maturity_count",
+              "calendar_warning",
+              "calendar_diagnostics",
+              "smiles",
+          }
+
+          missing_svi = (
+              required_svi
+              - svi.keys()
+          )
+
+          if missing_svi:
+              raise AssertionError(
+                  "Missing SVI fields: "
+                  f"{sorted(missing_svi)}"
+              )
+
+          if (
+              svi[
+                  "fitted_maturity_count"
+              ]
+              < 1
+          ):
+              raise AssertionError(
+                  "Expected at least one "
+                  "fitted SVI maturity."
+              )
+
+          print(
+              "Calibration endpoint: PASS"
+          )
+
+          print(
+              "Calibrated quotes:",
+              result[
+                  "calibrated_count"
+              ],
+          )
+
+          print(
+              "SVI maturities:",
+              svi[
+                  "fitted_maturity_count"
+              ],
+          )
+
+          print(
+              "Calendar diagnostics:",
+              len(
+                  svi[
+                      "calendar_diagnostics"
+                  ]
+              ),
+          )
+          PY
+
+      - name: Print backend log on failure
+        if: failure()
+        run: |
+          echo "----- FastAPI log -----"
+
+          cat /tmp/quantlab-api.log \
+            || true
+
+      - name: Stop FastAPI
+        if: always()
+        run: |
+          if [ -f /tmp/quantlab-api.pid ]; then
+            kill "$(cat /tmp/quantlab-api.pid)" \
+              || true
+          fi
+
+
+  ci-success:
+    name: QuantLab CI Passed
+
+    runs-on: ubuntu-latest
+
+    needs:
+      - backend
+      - frontend
+      - integration
+
+    steps:
+      - name: Confirm pipeline
+        run: |
+          echo "QuantLab backend tests passed."
+          echo "QuantLab API smoke test passed."
+          echo "QuantLab frontend lint passed."
+          echo "QuantLab frontend build passed."
