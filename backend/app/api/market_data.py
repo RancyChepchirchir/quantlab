@@ -4,6 +4,10 @@ from fastapi import (
     Query,
 )
 
+from app.services.market_data.errors import (
+    MarketDataProviderError,
+)
+
 from app.services.market_data.service import (
     get_option_chain,
 )
@@ -20,76 +24,78 @@ router = APIRouter(
 )
 def option_chain(
     symbol: str,
-    provider: str = Query(
-        default="mock"
+
+    provider: str = "mock",
+
+    refresh: bool = Query(
+        default=False,
+        description=(
+            "Bypass successful-chain cache "
+            "and provider failure cooldown."
+        ),
     ),
 ):
     try:
-        snapshot = (
+        return (
             get_option_chain(
                 symbol=symbol,
                 provider=provider,
+                use_cache=(
+                    not refresh
+                ),
             )
         )
+
+    except MarketDataProviderError as error:
+        raise HTTPException(
+            status_code=(
+                error.status_code
+            ),
+
+            detail={
+                "message":
+                    error.message,
+
+                "provider":
+                    error.provider,
+
+                "upstream_status":
+                    error
+                    .upstream_status,
+
+                "retryable":
+                    error.retryable,
+
+                "cached":
+                    error.cached,
+
+                "retry_after_seconds":
+                    error
+                    .retry_after_seconds,
+            },
+        ) from error
 
     except ValueError as error:
         raise HTTPException(
             status_code=400,
-            detail=str(error),
+
+            detail={
+                "message":
+                    str(error),
+
+                "provider":
+                    provider,
+
+                "upstream_status":
+                    None,
+
+                "retryable":
+                    False,
+
+                "cached":
+                    False,
+
+                "retry_after_seconds":
+                    None,
+            },
         ) from error
-
-    return {
-        "symbol":
-            snapshot.symbol,
-
-        "spot":
-            snapshot.spot,
-
-        "currency":
-            snapshot.currency,
-
-        "expiries":
-            snapshot.expiries,
-
-        "source":
-            snapshot.source,
-
-        "quotes": [
-            {
-                "symbol":
-                    quote.symbol,
-
-                "expiry":
-                    quote.expiry,
-
-                "option_type":
-                    quote.option_type,
-
-                "strike":
-                    quote.strike,
-
-                "bid":
-                    quote.bid,
-
-                "ask":
-                    quote.ask,
-
-                "last":
-                    quote.last,
-
-                "volume":
-                    quote.volume,
-
-                "open_interest":
-                    quote.open_interest,
-
-                "implied_volatility":
-                    quote.implied_volatility,
-
-                "source":
-                    quote.source,
-            }
-            for quote
-            in snapshot.quotes
-        ],
-    }

@@ -7,7 +7,6 @@ class OptionChainQuote:
     symbol: str
     expiry: str
     option_type: str
-
     strike: float
 
     bid: Optional[float]
@@ -29,7 +28,28 @@ class OptionChainSnapshot:
     currency: str
 
     expiries: List[str]
-
     quotes: List[OptionChainQuote]
 
     source: str
+
+    selected_expiries: Optional[
+        List[str]
+    ] = None
+
+    requested_strikes_per_expiry: Optional[
+        int
+    ] = None
+
+    returned_quote_count: Optional[
+        int
+    ] = None
+
+    cache_hit: bool = False
+
+    cache_age_seconds: Optional[
+        float
+    ] = None
+
+    cache_ttl_seconds: Optional[
+        int
+    ] = None

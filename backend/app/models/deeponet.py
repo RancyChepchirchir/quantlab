@@ -117,7 +117,7 @@ class DeepONetTrainingResult:
     model: DeepONet
     losses: list
     final_loss: float
-    
+
 
 def train_deeponet(
     branch_inputs,
@@ -236,9 +236,15 @@ def train_deeponet(
                 f"Loss "
                 f"{epoch_loss:.6e}"
             )
+    torch.save(
+                result.model.state_dict(),
+                "experiments/results/american_deeponet.pt",
+            )
 
     return DeepONetTrainingResult(
-        model=model,
-        losses=losses,
-        final_loss=losses[-1],
+            model=model,
+            losses=losses,
+            final_loss=losses[-1],
     )
+
+
