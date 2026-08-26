@@ -27,6 +27,7 @@ import {
   PutCallParityDiagnostic,
   RejectedVolatilityQuote,
   SkewDiagnostic,
+  SSVISurface,
   SVISurface,
   VolatilityQuoteInput,
   VolatilitySurfaceGrid,
@@ -238,6 +239,13 @@ export default function VolatilityLabPage() {
   >(null);
 
   const [
+    ssviSurface,
+    setSsviSurface,
+  ] = useState<
+    SSVISurface | null
+  >(null);
+
+  const [
     loading,
     setLoading,
   ] = useState(false);
@@ -306,6 +314,7 @@ export default function VolatilityLabPage() {
 
     setSurfaceGrid(null);
     setSviSurface(null);
+    setSsviSurface(null);
 
     setCalibrationStats({
       inputCount: 0,
@@ -426,6 +435,10 @@ export default function VolatilityLabPage() {
       setSviSurface(
         result.svi
       );
+
+      setSsviSurface(
+        result.ssvi
+        );
 
     } catch (err) {
       setError(
@@ -1035,6 +1048,373 @@ export default function VolatilityLabPage() {
       ]
     );
 
+    const ssviMeanRmse =
+    useMemo(
+        () => {
+        if (
+            !ssviSurface
+            || !ssviSurface.available
+            || !ssviSurface.parameters
+        ) {
+            return null;
+        }
+
+        return (
+            ssviSurface
+            .parameters
+            .rmse
+        );
+        },
+        [
+        ssviSurface,
+        ]
+    );
+
+
+const ssviCalendarViolationCount =
+  useMemo(
+    () => {
+      if (
+        !ssviSurface
+        || !ssviSurface.available
+      ) {
+        return 0;
+      }
+
+      return (
+        ssviSurface
+          .calendar_diagnostics
+          .filter(
+            (item) =>
+              item
+                .violation_detected
+          )
+          .length
+      );
+    },
+    [
+      ssviSurface,
+    ]
+  );
+
+
+const ssviButterflyWarningCount =
+  useMemo(
+    () => {
+      if (
+        !ssviSurface
+        || !ssviSurface.available
+      ) {
+        return 0;
+      }
+
+      return (
+        ssviSurface
+          .arbitrage_diagnostics
+          .filter(
+            (item) =>
+              item
+                .butterfly_warning
+          )
+          .length
+      );
+    },
+    [
+      ssviSurface,
+    ]
+  );
+
+
+  const modelComparisonData =
+    useMemo(
+      () => {
+        if (
+          !sviSurface
+          || !ssviSurface
+          || !ssviSurface.available
+        ) {
+          return [];
+        }
+
+        function interpolate(
+          points: Array<{
+            strike: number;
+            iv: number;
+          }>,
+          strike: number
+        ): number | null {
+          if (points.length === 0) {
+            return null;
+          }
+
+          const ordered = [
+            ...points,
+          ].sort(
+            (first, second) =>
+              first.strike
+              - second.strike
+          );
+
+          if (
+            strike
+            < ordered[0].strike
+            || strike
+            > ordered[
+              ordered.length - 1
+            ].strike
+          ) {
+            return null;
+          }
+
+          for (
+            let index = 0;
+            index < ordered.length;
+            index += 1
+          ) {
+            if (
+              Math.abs(
+                ordered[index].strike
+                - strike
+              )
+              < 1e-10
+            ) {
+              return ordered[index].iv;
+            }
+
+            if (
+              index
+              === ordered.length - 1
+            ) {
+              break;
+            }
+
+            const left =
+              ordered[index];
+
+            const right =
+              ordered[index + 1];
+
+            if (
+              strike > left.strike
+              && strike < right.strike
+            ) {
+              const weight =
+                (
+                  strike
+                  - left.strike
+                )
+                / (
+                  right.strike
+                  - left.strike
+                );
+
+              return (
+                left.iv
+                + weight
+                * (
+                  right.iv
+                  - left.iv
+                )
+              );
+            }
+          }
+
+          return null;
+        }
+
+        return sviSurface
+          .smiles
+          .map(
+            (smile) => {
+              const maturity =
+                smile
+                  .parameters
+                  .maturity;
+
+              const rawSvi =
+                smile.points.map(
+                  (point) => ({
+                    strike:
+                      point.strike,
+
+                    iv:
+                      point
+                        .fitted_iv_percent,
+                  })
+                );
+
+              const ssvi =
+                ssviSurface
+                  .points
+                  .filter(
+                    (point) =>
+                      Math.abs(
+                        point.maturity
+                        - maturity
+                      )
+                      < 1e-8
+                  )
+                  .map(
+                    (point) => ({
+                      strike:
+                        point.strike,
+
+                      iv:
+                        100
+                        * point.fitted_iv,
+                    })
+                  );
+
+              if (
+                rawSvi.length === 0
+                || ssvi.length === 0
+              ) {
+                return null;
+              }
+
+              const observedByStrike =
+                new Map<
+                  number,
+                  number[]
+                >();
+
+              calibrated
+                .filter(
+                  (quote) =>
+                    Math.abs(
+                      quote.maturity
+                      - maturity
+                    )
+                    < 1e-8
+                )
+                .forEach(
+                  (quote) => {
+                    const values =
+                      observedByStrike
+                        .get(
+                          quote.strike
+                        )
+                      ?? [];
+
+                    values.push(
+                      quote
+                        .implied_volatility_percent
+                    );
+
+                    observedByStrike.set(
+                      quote.strike,
+                      values
+                    );
+                  }
+                );
+
+              const observed =
+                Array.from(
+                  observedByStrike.entries()
+                ).map(
+                  ([
+                    strike,
+                    values,
+                  ]) => ({
+                    strike,
+
+                    iv:
+                      values.reduce(
+                        (total, value) =>
+                          total + value,
+                        0
+                      )
+                      / values.length,
+                  })
+                );
+
+              const strikes =
+                Array.from(
+                  new Set(
+                    [
+                      ...rawSvi.map(
+                        (point) =>
+                          point.strike
+                      ),
+
+                      ...ssvi.map(
+                        (point) =>
+                          point.strike
+                      ),
+
+                      ...observed.map(
+                        (point) =>
+                          point.strike
+                      ),
+                    ]
+                  )
+                ).sort(
+                  (first, second) =>
+                    first - second
+                );
+
+              const observedMap =
+                new Map(
+                  observed.map(
+                    (point) => [
+                      point.strike,
+                      point.iv,
+                    ]
+                  )
+                );
+
+              return {
+                maturity,
+
+                rows:
+                  strikes.map(
+                    (strike) => ({
+                      strike,
+
+                      observedIv:
+                        observedMap.get(
+                          strike
+                        ),
+
+                      rawSviIv:
+                        interpolate(
+                          rawSvi,
+                          strike
+                        ),
+
+                      ssviIv:
+                        interpolate(
+                          ssvi,
+                          strike
+                        ),
+                    })
+                  ),
+              };
+            }
+          )
+          .filter(
+            (item): item is {
+              maturity: number;
+              rows: Array<{
+                strike: number;
+                observedIv:
+                  number | undefined;
+                rawSviIv:
+                  number | null;
+                ssviIv:
+                  number | null;
+              }>;
+            } =>
+              item !== null
+          );
+      },
+      [
+        calibrated,
+        sviSurface,
+        ssviSurface,
+      ]
+    );
+
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -1057,7 +1437,7 @@ export default function VolatilityLabPage() {
             volatility, compare European
             and American models, inspect
             skew and term structure,
-            fit raw SVI smiles, and monitor
+            fit raw SVI and SSVI surfaces, and monitor
             market-data freshness explicitly.
           </p>
 
@@ -2140,6 +2520,685 @@ export default function VolatilityLabPage() {
 
                 </>
               )}
+
+              {ssviSurface && (
+  <section className="mb-12">
+
+    <div className="mb-6">
+
+      <p className="text-sm uppercase tracking-[0.2em] text-cyan-400">
+        SSVI surface
+      </p>
+
+      <h2 className="mt-2 text-3xl font-semibold">
+        Shared cross-maturity volatility model
+      </h2>
+
+      <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">
+        SSVI fits one shared parameter
+        triplet across usable maturities
+        using forward log-moneyness and
+        maturity-specific ATM total
+        variance.
+      </p>
+
+    </div>
+
+
+    {!ssviSurface.available ? (
+      <div className="rounded-2xl border border-amber-900/40 bg-amber-950/10 p-6">
+
+        <p className="text-sm uppercase tracking-[0.2em] text-amber-400">
+          SSVI unavailable
+        </p>
+
+        <p className="mt-3 text-sm leading-6 text-zinc-400">
+          {ssviSurface.message
+            ?? (
+              "The current calibration "
+              + "does not contain enough "
+              + "usable maturities."
+            )}
+        </p>
+
+      </div>
+    ) : (
+      <>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
+          <StatCard
+            label="η"
+            value={
+              ssviSurface.parameters
+                ? ssviSurface
+                    .parameters
+                    .eta
+                    .toFixed(
+                      6
+                    )
+                : "—"
+            }
+          />
+
+          <StatCard
+            label="ρ"
+            value={
+              ssviSurface.parameters
+                ? ssviSurface
+                    .parameters
+                    .rho
+                    .toFixed(
+                      6
+                    )
+                : "—"
+            }
+          />
+
+          <StatCard
+            label="γ"
+            value={
+              ssviSurface.parameters
+                ? ssviSurface
+                    .parameters
+                    .gamma
+                    .toFixed(
+                      6
+                    )
+                : "—"
+            }
+          />
+
+          <StatCard
+            label="Variance RMSE"
+            value={
+              ssviMeanRmse
+              != null
+                ? ssviMeanRmse
+                    .toExponential(
+                      3
+                    )
+                : "—"
+            }
+          />
+
+          <StatCard
+            label="Observations"
+            value={
+              ssviSurface.parameters
+                ? ssviSurface
+                    .parameters
+                    .observation_count
+                    .toString()
+                : "—"
+            }
+          />
+
+          <StatCard
+            label="Maturities"
+            value={
+              ssviSurface.parameters
+                ? ssviSurface
+                    .parameters
+                    .maturity_count
+                    .toString()
+                : "—"
+            }
+          />
+
+          <StatCard
+            label="Butterfly warnings"
+            value={
+              ssviButterflyWarningCount
+                .toString()
+            }
+          />
+
+          <StatCard
+            label="Calendar warnings"
+            value={
+              ssviCalendarViolationCount
+                .toString()
+            }
+          />
+
+        </div>
+
+
+        <div className="mt-8 overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-900">
+
+          <table className="w-full min-w-[900px] text-sm">
+
+            <thead className="text-left text-zinc-500">
+
+              <tr>
+
+                <th className="px-5 py-4">
+                  Maturity
+                </th>
+
+                <th className="px-5 py-4">
+                  Forward
+                </th>
+
+                <th className="px-5 py-4">
+                  ATM strike
+                </th>
+
+                <th className="px-5 py-4">
+                  ATM IV
+                </th>
+
+                <th className="px-5 py-4">
+                  θ
+                </th>
+
+              </tr>
+
+            </thead>
+
+            <tbody>
+
+              {ssviSurface
+                .atm_slices
+                .map(
+                  (
+                    item,
+                    index
+                  ) => (
+                    <tr
+                      key={
+                        `${item.maturity}-${index}`
+                      }
+                      className="border-t border-zinc-800"
+                    >
+
+                      <td className="px-5 py-4 font-mono">
+                        {item
+                          .maturity
+                          .toFixed(
+                            4
+                          )}
+                      </td>
+
+                      <td className="px-5 py-4 font-mono">
+                        {item
+                          .forward
+                          .toFixed(
+                            4
+                          )}
+                      </td>
+
+                      <td className="px-5 py-4 font-mono">
+                        {item
+                          .atm_strike
+                          .toFixed(
+                            4
+                          )}
+                      </td>
+
+                      <td className="px-5 py-4 font-mono">
+                        {(
+                          100
+                          * item
+                            .atm_implied_volatility
+                        ).toFixed(
+                          2
+                        )}
+                        %
+                      </td>
+
+                      <td className="px-5 py-4 font-mono">
+                        {item
+                          .theta
+                          .toExponential(
+                            4
+                          )}
+                      </td>
+
+                    </tr>
+                  )
+                )}
+
+            </tbody>
+
+          </table>
+
+        </div>
+
+
+        {ssviSurface
+          .calendar_diagnostics
+          .length > 0
+          && (
+            <div className="mt-8">
+
+              <h3 className="text-2xl font-semibold">
+                SSVI calendar diagnostics
+              </h3>
+
+              <div className="mt-5 overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-900">
+
+                <table className="w-full min-w-[900px] text-sm">
+
+                  <thead className="text-left text-zinc-500">
+
+                    <tr>
+
+                      <th className="px-5 py-4">
+                        Short T
+                      </th>
+
+                      <th className="px-5 py-4">
+                        Long T
+                      </th>
+
+                      <th className="px-5 py-4">
+                        Min Δw
+                      </th>
+
+                      <th className="px-5 py-4">
+                        Violations
+                      </th>
+
+                      <th className="px-5 py-4">
+                        Grid points
+                      </th>
+
+                      <th className="px-5 py-4">
+                        Status
+                      </th>
+
+                    </tr>
+
+                  </thead>
+
+                  <tbody>
+
+                    {ssviSurface
+                      .calendar_diagnostics
+                      .map(
+                        (
+                          item,
+                          index
+                        ) => (
+                          <tr
+                            key={
+                              `${item.shorter_maturity}-${item.longer_maturity}-${index}`
+                            }
+                            className="border-t border-zinc-800"
+                          >
+
+                            <td className="px-5 py-4 font-mono">
+                              {item
+                                .shorter_maturity
+                                .toFixed(
+                                  4
+                                )}
+                            </td>
+
+                            <td className="px-5 py-4 font-mono">
+                              {item
+                                .longer_maturity
+                                .toFixed(
+                                  4
+                                )}
+                            </td>
+
+                            <td className="px-5 py-4 font-mono">
+                              {item
+                                .minimum_variance_difference
+                                .toExponential(
+                                  4
+                                )}
+                            </td>
+
+                            <td className="px-5 py-4 font-mono">
+                              {item
+                                .violation_count}
+                            </td>
+
+                            <td className="px-5 py-4 font-mono">
+                              {item
+                                .comparison_point_count}
+                            </td>
+
+                            <td className="px-5 py-4">
+
+                              <StatusBadge
+                                warning={
+                                  item
+                                    .violation_detected
+                                }
+                                warningText="Calendar warning"
+                                okText="Pass"
+                              />
+
+                            </td>
+
+                          </tr>
+                        )
+                      )}
+
+                  </tbody>
+
+                </table>
+
+              </div>
+
+            </div>
+          )}
+
+
+        {ssviSurface
+            .arbitrage_diagnostics
+            .length > 0
+            && (
+                <div className="mt-8">
+
+                <h3 className="text-2xl font-semibold">
+                    SSVI butterfly diagnostics
+                </h3>
+
+                <div className="mt-5 overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-900">
+
+                    <table className="w-full min-w-[1050px] text-sm">
+
+                    <thead className="text-left text-zinc-500">
+
+                        <tr>
+
+                        <th className="px-5 py-4">
+                            Maturity
+                        </th>
+
+                        <th className="px-5 py-4">
+                            θ
+                        </th>
+
+                        <th className="px-5 py-4">
+                            φ
+                        </th>
+
+                        <th className="px-5 py-4">
+                            Bound 1
+                        </th>
+
+                        <th className="px-5 py-4">
+                            Bound 2
+                        </th>
+
+                        <th className="px-5 py-4">
+                            Status
+                        </th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        {ssviSurface
+                        .arbitrage_diagnostics
+                        .map(
+                            (
+                            item,
+                            index
+                            ) => (
+                            <tr
+                                key={
+                                `${item.maturity}-${index}`
+                                }
+                                className="border-t border-zinc-800"
+                            >
+
+                                <td className="px-5 py-4 font-mono">
+                                {item
+                                    .maturity
+                                    .toFixed(
+                                    4
+                                    )}
+                                </td>
+
+                                <td className="px-5 py-4 font-mono">
+                                {item
+                                    .theta
+                                    .toExponential(
+                                    4
+                                    )}
+                                </td>
+
+                                <td className="px-5 py-4 font-mono">
+                                {item
+                                    .phi
+                                    .toExponential(
+                                    4
+                                    )}
+                                </td>
+
+                                <td className="px-5 py-4 font-mono">
+                                {item
+                                    .first_butterfly_bound
+                                    .toExponential(
+                                    4
+                                    )}
+                                </td>
+
+                                <td className="px-5 py-4 font-mono">
+                                {item
+                                    .second_butterfly_bound
+                                    .toExponential(
+                                    4
+                                    )}
+                                </td>
+
+                                <td className="px-5 py-4">
+
+                                <StatusBadge
+                                    warning={
+                                    item
+                                        .butterfly_warning
+                                    }
+                                    warningText="Butterfly warning"
+                                    okText="Pass"
+                                />
+
+                                </td>
+
+                            </tr>
+                            )
+                        )}
+
+                    </tbody>
+
+                    </table>
+
+                </div>
+
+                </div>
+            )}
+
+        </>
+        )}
+
+    </section>
+    )}
+
+
+            {modelComparisonData.length > 0 && (
+              <section className="mb-12">
+
+                <p className="text-sm uppercase tracking-[0.2em] text-cyan-400">
+                  Model comparison
+                </p>
+
+                <h2 className="mt-2 text-3xl font-semibold">
+                  Observed IV vs raw SVI vs SSVI
+                </h2>
+
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">
+                  Observed Black–Scholes implied volatility is shown against
+                  the maturity-specific raw-SVI fit and the shared
+                  cross-maturity SSVI fit. This makes the trade-off between
+                  local smile flexibility and global surface structure visible.
+                </p>
+
+                <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
+                  <StatCard
+                    label="Raw SVI maturities"
+                    value={
+                      sviSurface
+                        ?.fitted_maturity_count
+                        .toString()
+                      ?? "—"
+                    }
+                  />
+
+                  <StatCard
+                    label="Raw SVI mean RMSE"
+                    value={
+                      sviMeanRmse != null
+                        ? sviMeanRmse
+                            .toExponential(3)
+                        : "—"
+                    }
+                  />
+
+                  <StatCard
+                    label="SSVI global RMSE"
+                    value={
+                      ssviMeanRmse != null
+                        ? ssviMeanRmse
+                            .toExponential(3)
+                        : "—"
+                    }
+                  />
+
+                  <StatCard
+                    label="Compared maturities"
+                    value={
+                      modelComparisonData
+                        .length
+                        .toString()
+                    }
+                  />
+
+                </div>
+
+                <p className="mt-4 text-xs leading-5 text-zinc-500">
+                  RMSE values describe each model&apos;s own total-variance
+                  calibration objective. Use the charts and arbitrage
+                  diagnostics alongside RMSE rather than treating the smallest
+                  number as sufficient evidence of the better surface.
+                </p>
+
+                <div className="mt-8 space-y-10">
+
+                  {modelComparisonData.map(
+                    (comparison) => (
+                      <div
+                        key={
+                          `model-comparison-${comparison.maturity}`
+                        }
+                      >
+
+                        <h3 className="mb-5 text-2xl font-semibold">
+                          T={comparison
+                            .maturity
+                            .toFixed(4)}
+                        </h3>
+
+                        <ChartPanel>
+
+                          <ComposedChart
+                            data={
+                              comparison.rows
+                            }
+                          >
+
+                            <CartesianGrid
+                              strokeDasharray="3 3"
+                              opacity={0.15}
+                            />
+
+                            <XAxis
+                              type="number"
+                              dataKey="strike"
+                              domain={[
+                                "dataMin",
+                                "dataMax",
+                              ]}
+                            />
+
+                            <YAxis
+                              type="number"
+                              domain={[
+                                "auto",
+                                "auto",
+                              ]}
+                              label={{
+                                value: "IV (%)",
+                                angle: -90,
+                                position: "insideLeft",
+                              }}
+                            />
+
+                            <Tooltip
+                              formatter={(
+                                value: number | string
+                              ) => {
+                                const numeric =
+                                  Number(value);
+
+                                return Number.isFinite(
+                                  numeric
+                                )
+                                  ? `${numeric.toFixed(2)}%`
+                                  : value;
+                              }}
+                            />
+
+                            <Legend />
+
+                            <Line
+                              type="monotone"
+                              dataKey="rawSviIv"
+                              name="Raw SVI"
+                              stroke="#c084fc"
+                              strokeWidth={2}
+                              dot={false}
+                              connectNulls
+                            />
+
+                            <Line
+                              type="monotone"
+                              dataKey="ssviIv"
+                              name="SSVI"
+                              stroke="#22d3ee"
+                              strokeWidth={2}
+                              strokeDasharray="7 4"
+                              dot={false}
+                              connectNulls
+                            />
+
+                            <Scatter
+                              dataKey="observedIv"
+                              name="Observed BS IV"
+                              fill="#34d399"
+                            />
+
+                          </ComposedChart>
+
+                        </ChartPanel>
+
+                      </div>
+                    )
+                  )}
+
+                </div>
+
+              </section>
+            )}
 
 
             {surfaceGrid

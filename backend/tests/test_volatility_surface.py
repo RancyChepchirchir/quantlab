@@ -10,6 +10,12 @@ from app.services.volatility_surface import (
     calibrate_option_chain,
 )
 
+from fastapi.testclient import (
+    TestClient,
+)
+
+from app.main import app
+
 
 def test_option_chain_recovers_volatility():
     spot = 100.0
