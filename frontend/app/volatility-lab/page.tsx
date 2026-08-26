@@ -3144,18 +3144,29 @@ const ssviButterflyWarningCount =
                             />
 
                             <Tooltip
-                              formatter={(
-                                value: number | string
-                              ) => {
-                                const numeric =
-                                  Number(value);
+                            formatter={(value) => {
+                                if (
+                                value === undefined
+                                || value === null
+                                ) {
+                                return "";
+                                }
 
-                                return Number.isFinite(
-                                  numeric
+                                const numeric =
+                                Number(value);
+
+                                if (
+                                !Number.isFinite(
+                                    numeric
                                 )
-                                  ? `${numeric.toFixed(2)}%`
-                                  : value;
-                              }}
+                                ) {
+                                return String(
+                                    value
+                                );
+                                }
+
+                                return `${numeric.toFixed(2)}%`;
+                            }}
                             />
 
                             <Legend />
