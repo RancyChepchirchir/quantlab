@@ -35,6 +35,10 @@ from app.services.volatility_model_comparison import (
     compare_svi_and_ssvi,
 )
 
+from app.services.volatility_arbitrage_layers import (
+    compare_arbitrage_layers,
+)
+
 router = APIRouter(
     prefix="/calibration",
     tags=["calibration"],
@@ -209,6 +213,83 @@ class SSVIResponse(
 # Endpoint
 # =============================================================
 
+def _serialize_arbitrage_diagnostics(
+    diagnostics,
+):
+    return {
+        "calendar_arbitrage_free":
+            diagnostics
+            .calendar_arbitrage_free,
+
+        "butterfly_arbitrage_free":
+            diagnostics
+            .butterfly_arbitrage_free,
+
+        "arbitrage_free":
+            diagnostics
+            .arbitrage_free,
+
+        "calendar_violation_count":
+            diagnostics
+            .calendar_violation_count,
+
+        "butterfly_violation_count":
+            diagnostics
+            .butterfly_violation_count,
+
+        "total_violation_count":
+            diagnostics
+            .total_violation_count,
+
+        "calendar_violations": [
+            {
+                "strike":
+                    item.strike,
+
+                "earlier_maturity":
+                    item.earlier_maturity,
+
+                "later_maturity":
+                    item.later_maturity,
+
+                "earlier_total_variance":
+                    item
+                    .earlier_total_variance,
+
+                "later_total_variance":
+                    item
+                    .later_total_variance,
+
+                "difference":
+                    item.difference,
+            }
+            for item
+            in diagnostics
+            .calendar_violations
+        ],
+
+        "butterfly_violations": [
+            {
+                "maturity":
+                    item.maturity,
+
+                "left_strike":
+                    item.left_strike,
+
+                "center_strike":
+                    item.center_strike,
+
+                "right_strike":
+                    item.right_strike,
+
+                "curvature":
+                    item.curvature,
+            }
+            for item
+            in diagnostics
+            .butterfly_violations
+        ],
+    }
 
 @router.post(
     "/volatility-surface"
@@ -325,6 +406,8 @@ def calibrate_volatility_surface(
     # A valid ordinary volatility calibration should not fail
     # merely because there are too few maturities for SSVI.
     # ---------------------------------------------------------
+
+    ssvi_result = None
 
     ssvi_response = SSVIResponse(
         available=False,
@@ -570,6 +653,42 @@ def calibrate_volatility_surface(
 
         except ValueError:
             model_comparison = None    
+
+    # =====================================================
+    # Market vs SVI vs SSVI arbitrage diagnostics
+    # =====================================================
+
+    arbitrage_layers = None
+
+    if (
+        ssvi_result is not None
+    ):
+        try:
+            arbitrage_layers = (
+                compare_arbitrage_layers(
+                    quotes=(
+                        result.calibrated
+                    ),
+                    svi_surface=(
+                        svi_result
+                    ),
+                    ssvi_surface=(
+                        ssvi_result
+                    ),
+                    spot=(
+                        request.spot
+                    ),
+                    rate=(
+                        request.rate
+                    ),
+                    dividend_yield=(
+                        request.dividend_yield
+                    ),
+                )
+            )
+
+        except ValueError:
+            arbitrage_layers = None
 
     # =========================================================
     # Response
@@ -1222,6 +1341,61 @@ def calibrate_volatility_surface(
             }
 
             if model_comparison
+            is not None
+
+            else None
+        ),
+
+        # =====================================================
+        # Market vs SVI vs SSVI arbitrage diagnostics
+        # =====================================================
+
+        "arbitrage_layers": (
+            {
+                "market": {
+                    "name":
+                        arbitrage_layers
+                        .market
+                        .name,
+
+                    "diagnostics":
+                        _serialize_arbitrage_diagnostics(
+                            arbitrage_layers
+                            .market
+                            .diagnostics
+                        ),
+                },
+
+                "svi": {
+                    "name":
+                        arbitrage_layers
+                        .svi
+                        .name,
+
+                    "diagnostics":
+                        _serialize_arbitrage_diagnostics(
+                            arbitrage_layers
+                            .svi
+                            .diagnostics
+                        ),
+                },
+
+                "ssvi": {
+                    "name":
+                        arbitrage_layers
+                        .ssvi
+                        .name,
+
+                    "diagnostics":
+                        _serialize_arbitrage_diagnostics(
+                            arbitrage_layers
+                            .ssvi
+                            .diagnostics
+                        ),
+                },
+            }
+
+            if arbitrage_layers
             is not None
 
             else None

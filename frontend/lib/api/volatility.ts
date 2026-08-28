@@ -356,7 +356,6 @@ export type SSVISurface = {
     string | null;
 };
 
-
 // ============================================================
 // Main API response
 // ============================================================
@@ -389,8 +388,50 @@ export type VolatilitySurfaceResponse = {
 
   ssvi:
     SSVISurface;
+
+  arbitrage_layers: VolatilityArbitrageLayers | null;
 };
 
+export interface CalendarArbitrageViolation {
+  strike: number;
+  earlier_maturity: number;
+  later_maturity: number;
+  earlier_total_variance: number;
+  later_total_variance: number;
+  difference: number;
+}
+
+export interface ButterflyArbitrageViolation {
+  maturity: number;
+  left_strike: number;
+  center_strike: number;
+  right_strike: number;
+  curvature: number;
+}
+
+export interface VolatilityArbitrageDiagnostics {
+  calendar_arbitrage_free: boolean;
+  butterfly_arbitrage_free: boolean;
+  arbitrage_free: boolean;
+
+  calendar_violation_count: number;
+  butterfly_violation_count: number;
+  total_violation_count: number;
+
+  calendar_violations: CalendarArbitrageViolation[];
+  butterfly_violations: ButterflyArbitrageViolation[];
+}
+
+export interface VolatilityArbitrageLayer {
+  name: string;
+  diagnostics: VolatilityArbitrageDiagnostics;
+}
+
+export interface VolatilityArbitrageLayers {
+  market: VolatilityArbitrageLayer;
+  svi: VolatilityArbitrageLayer;
+  ssvi: VolatilityArbitrageLayer;
+}
 
 const API_URL =
   process.env

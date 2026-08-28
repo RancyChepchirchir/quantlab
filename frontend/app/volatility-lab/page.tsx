@@ -31,6 +31,7 @@ import {
   SVISurface,
   VolatilityQuoteInput,
   VolatilitySurfaceGrid,
+  VolatilityArbitrageLayers,
 } from "@/lib/api/volatility";
 
 import {
@@ -246,6 +247,13 @@ export default function VolatilityLabPage() {
   >(null);
 
   const [
+    arbitrageLayers,
+    setArbitrageLayers,
+    ] = useState<
+    VolatilityArbitrageLayers | null
+    >(null);
+
+  const [
     loading,
     setLoading,
   ] = useState(false);
@@ -315,6 +323,7 @@ export default function VolatilityLabPage() {
     setSurfaceGrid(null);
     setSviSurface(null);
     setSsviSurface(null);
+    setArbitrageLayers(null);
 
     setCalibrationStats({
       inputCount: 0,
@@ -438,6 +447,10 @@ export default function VolatilityLabPage() {
 
       setSsviSurface(
         result.ssvi
+        );
+
+      setArbitrageLayers(
+        result.arbitrage_layers
         );
 
     } catch (err) {
@@ -3209,6 +3222,408 @@ const ssviButterflyWarningCount =
                 </div>
 
               </section>
+            )}
+
+            {arbitrageLayers && (
+            <section className="mb-12">
+                <div className="mb-6">
+                <h2 className="text-3xl font-semibold">
+                    Static arbitrage diagnostics
+                </h2>
+
+                <p className="mt-2 max-w-4xl text-sm leading-6 text-zinc-400">
+                    Compare calendar and butterfly consistency
+                    across the observed market quotes, the
+                    maturity-by-maturity raw SVI fit, and the
+                    global SSVI surface.
+                </p>
+                </div>
+
+                <div className="grid gap-5 lg:grid-cols-3">
+                {[
+                    {
+                    title: "Market",
+                    layer: arbitrageLayers.market,
+                    },
+                    {
+                    title: "Raw SVI",
+                    layer: arbitrageLayers.svi,
+                    },
+                    {
+                    title: "SSVI",
+                    layer: arbitrageLayers.ssvi,
+                    },
+                ].map(
+                    ({
+                    title,
+                    layer,
+                    }) => {
+                    const diagnostics =
+                        layer.diagnostics;
+
+                    return (
+                        <article
+                        key={layer.name}
+                        className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6"
+                        >
+                        <div className="flex items-start justify-between gap-4">
+                            <div>
+                            <p className="text-xs uppercase tracking-[0.18em] text-zinc-500">
+                                Surface layer
+                            </p>
+
+                            <h3 className="mt-2 text-xl font-semibold">
+                                {title}
+                            </h3>
+                            </div>
+
+                            <StatusBadge
+                            warning={
+                                !diagnostics
+                                .arbitrage_free
+                            }
+                            warningText="Violations detected"
+                            okText="No violations"
+                            />
+                        </div>
+
+                        <div className="mt-6 space-y-4">
+                            <div className="flex items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+                            <div>
+                                <p className="text-sm text-zinc-300">
+                                Calendar
+                                </p>
+
+                                <p className="mt-1 text-xs text-zinc-500">
+                                Total variance across
+                                maturities
+                                </p>
+                            </div>
+
+                            <StatusBadge
+                                warning={
+                                !diagnostics
+                                    .calendar_arbitrage_free
+                                }
+                                warningText={
+                                `${diagnostics
+                                    .calendar_violation_count} warning${
+                                    diagnostics
+                                    .calendar_violation_count
+                                    === 1
+                                    ? ""
+                                    : "s"
+                                }`
+                                }
+                                okText="Consistent"
+                            />
+                            </div>
+
+                            <div className="flex items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+                            <div>
+                                <p className="text-sm text-zinc-300">
+                                Butterfly
+                                </p>
+
+                                <p className="mt-1 text-xs text-zinc-500">
+                                Convexity across strikes
+                                </p>
+                            </div>
+
+                            <StatusBadge
+                                warning={
+                                !diagnostics
+                                    .butterfly_arbitrage_free
+                                }
+                                warningText={
+                                `${diagnostics
+                                    .butterfly_violation_count} warning${
+                                    diagnostics
+                                    .butterfly_violation_count
+                                    === 1
+                                    ? ""
+                                    : "s"
+                                }`
+                                }
+                                okText="Consistent"
+                            />
+                            </div>
+
+                            <div className="flex items-end justify-between gap-4">
+                            <div>
+                                <p className="text-sm text-zinc-400">
+                                Total violations
+                                </p>
+
+                                <p className="mt-2 font-mono text-3xl font-semibold">
+                                {
+                                    diagnostics
+                                    .total_violation_count
+                                }
+                                </p>
+                            </div>
+
+                            <p className="max-w-[150px] text-right text-xs leading-5 text-zinc-500">
+                                Calendar +
+                                butterfly diagnostic
+                                findings
+                            </p>
+                            </div>
+                        </div>
+                        </article>
+                    );
+                    }
+                )}
+                </div>
+
+                {[
+                {
+                    title: "Market",
+                    layer: arbitrageLayers.market,
+                },
+                {
+                    title: "Raw SVI",
+                    layer: arbitrageLayers.svi,
+                },
+                {
+                    title: "SSVI",
+                    layer: arbitrageLayers.ssvi,
+                },
+                ].some(
+                ({ layer }) =>
+                    layer
+                    .diagnostics
+                    .total_violation_count
+                    > 0
+                ) && (
+                <div className="mt-6 rounded-2xl border border-zinc-800 bg-zinc-900 p-6">
+                    <h3 className="text-lg font-semibold">
+                    Violation details
+                    </h3>
+
+                    <p className="mt-2 text-sm text-zinc-400">
+                    Only layers with detected
+                    violations are shown below.
+                    </p>
+
+                    <div className="mt-6 space-y-6">
+                    {[
+                        {
+                        title: "Market",
+                        layer:
+                            arbitrageLayers.market,
+                        },
+                        {
+                        title: "Raw SVI",
+                        layer:
+                            arbitrageLayers.svi,
+                        },
+                        {
+                        title: "SSVI",
+                        layer:
+                            arbitrageLayers.ssvi,
+                        },
+                    ].map(
+                        ({
+                        title,
+                        layer,
+                        }) => {
+                        const diagnostics =
+                            layer.diagnostics;
+
+                        if (
+                            diagnostics
+                            .total_violation_count
+                            === 0
+                        ) {
+                            return null;
+                        }
+
+                        return (
+                            <div
+                            key={layer.name}
+                            className="rounded-xl border border-zinc-800 bg-zinc-950/50 p-5"
+                            >
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <h4 className="font-semibold">
+                                {title}
+                                </h4>
+
+                                <span className="font-mono text-sm text-amber-300">
+                                {
+                                    diagnostics
+                                    .total_violation_count
+                                }{" "}
+                                violation
+                                {
+                                    diagnostics
+                                    .total_violation_count
+                                    === 1
+                                    ? ""
+                                    : "s"
+                                }
+                                </span>
+                            </div>
+
+                            {diagnostics
+                                .calendar_violations
+                                .length > 0 && (
+                                <div className="mt-5">
+                                <p className="mb-3 text-xs uppercase tracking-[0.15em] text-zinc-500">
+                                    Calendar
+                                </p>
+
+                                <div className="space-y-2">
+                                    {diagnostics
+                                    .calendar_violations
+                                    .map(
+                                        (
+                                        violation,
+                                        index
+                                        ) => (
+                                        <div
+                                            key={
+                                            `${layer.name}-calendar-${index}`
+                                            }
+                                            className="rounded-lg border border-zinc-800 px-4 py-3 text-sm"
+                                        >
+                                            <span className="font-mono text-zinc-300">
+                                            K=
+                                            {violation
+                                                .strike
+                                                .toFixed(
+                                                2
+                                                )}
+                                            </span>
+
+                                            <span className="mx-2 text-zinc-600">
+                                            •
+                                            </span>
+
+                                            <span className="text-zinc-400">
+                                            T{" "}
+                                            {violation
+                                                .earlier_maturity
+                                                .toFixed(
+                                                4
+                                                )}
+                                            {" → "}
+                                            {violation
+                                                .later_maturity
+                                                .toFixed(
+                                                4
+                                                )}
+                                            </span>
+
+                                            <span className="mx-2 text-zinc-600">
+                                            •
+                                            </span>
+
+                                            <span className="font-mono text-amber-300">
+                                            Δw=
+                                            {violation
+                                                .difference
+                                                .toExponential(
+                                                3
+                                                )}
+                                            </span>
+                                        </div>
+                                        )
+                                    )}
+                                </div>
+                                </div>
+                            )}
+
+                            {diagnostics
+                                .butterfly_violations
+                                .length > 0 && (
+                                <div className="mt-5">
+                                <p className="mb-3 text-xs uppercase tracking-[0.15em] text-zinc-500">
+                                    Butterfly
+                                </p>
+
+                                <div className="space-y-2">
+                                    {diagnostics
+                                    .butterfly_violations
+                                    .map(
+                                        (
+                                        violation,
+                                        index
+                                        ) => (
+                                        <div
+                                            key={
+                                            `${layer.name}-butterfly-${index}`
+                                            }
+                                            className="rounded-lg border border-zinc-800 px-4 py-3 text-sm"
+                                        >
+                                            <span className="font-mono text-zinc-300">
+                                            T=
+                                            {violation
+                                                .maturity
+                                                .toFixed(
+                                                4
+                                                )}
+                                            </span>
+
+                                            <span className="mx-2 text-zinc-600">
+                                            •
+                                            </span>
+
+                                            <span className="text-zinc-400">
+                                            K{" "}
+                                            {violation
+                                                .left_strike
+                                                .toFixed(
+                                                2
+                                                )}
+                                            {" / "}
+                                            {violation
+                                                .center_strike
+                                                .toFixed(
+                                                2
+                                                )}
+                                            {" / "}
+                                            {violation
+                                                .right_strike
+                                                .toFixed(
+                                                2
+                                                )}
+                                            </span>
+
+                                            <span className="mx-2 text-zinc-600">
+                                            •
+                                            </span>
+
+                                            <span className="font-mono text-amber-300">
+                                            curvature=
+                                            {violation
+                                                .curvature
+                                                .toExponential(
+                                                3
+                                                )}
+                                            </span>
+                                        </div>
+                                        )
+                                    )}
+                                </div>
+                                </div>
+                            )}
+                            </div>
+                        );
+                        }
+                    )}
+                    </div>
+                </div>
+                )}
+
+                <p className="mt-4 max-w-4xl text-xs leading-5 text-zinc-500">
+                These checks are diagnostic rather than
+                a mathematical guarantee of complete
+                static-arbitrage freedom. SVI and SSVI
+                retain their model-specific arbitrage
+                diagnostics elsewhere in the lab.
+                </p>
+            </section>
             )}
 
 
