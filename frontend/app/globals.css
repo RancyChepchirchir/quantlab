@@ -1,26 +1,913 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ql-bg: #050816;
+  --ql-bg-soft: #091021;
+  --ql-panel: rgba(12, 20, 38, 0.88);
+  --ql-panel-strong: rgba(10, 17, 32, 0.96);
+  --ql-panel-muted: rgba(255, 255, 255, 0.035);
+
+  --ql-border: rgba(122, 147, 201, 0.16);
+  --ql-border-strong: rgba(135, 101, 255, 0.28);
+
+  --ql-text: #f7f8fc;
+  --ql-text-soft: #c5cee0;
+  --ql-text-muted: #7f8ba3;
+
+  --ql-purple: #8b5cf6;
+  --ql-purple-strong: #7c3aed;
+  --ql-blue: #38bdf8;
+  --ql-cyan: #22d3ee;
+  --ql-green: #22c55e;
+  --ql-red: #ef4444;
+  --ql-yellow: #facc15;
+
+  --ql-shadow:
+    0 18px 50px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(255, 255, 255, 0.015);
+
+  --ql-radius: 18px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+* {
+  box-sizing: border-box;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  min-height: 100%;
+  background:
+    radial-gradient(
+      circle at 20% 0%,
+      rgba(124, 58, 237, 0.15),
+      transparent 34%
+    ),
+    radial-gradient(
+      circle at 90% 15%,
+      rgba(14, 165, 233, 0.1),
+      transparent 28%
+    ),
+    var(--ql-bg);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  min-height: 100vh;
+  background: transparent;
+  color: var(--ql-text);
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  line-height: 1.5;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+::selection {
+  background: rgba(139, 92, 246, 0.35);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #070b16;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #202a42;
+  border: 2px solid #070b16;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #33405e;
+}
+
+/* =========================================================
+   GLOBAL WORKSTATION SHELL
+   ========================================================= */
+
+.quantlab-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+}
+
+.quantlab-sidebar {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 248px;
+  z-index: 40;
+
+  display: flex;
+  flex-direction: column;
+  padding: 22px 14px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(7, 11, 25, 0.98),
+      rgba(5, 9, 20, 0.97)
+    );
+
+  border-right: 1px solid var(--ql-border);
+
+  box-shadow:
+    18px 0 50px rgba(0, 0, 0, 0.18);
+
+  backdrop-filter: blur(18px);
+}
+
+.quantlab-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 8px 24px;
+}
+
+.quantlab-brand-mark {
+  width: 42px;
+  height: 42px;
+
+  display: grid;
+  place-items: center;
+
+  border-radius: 13px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(139, 92, 246, 0.22),
+      rgba(56, 189, 248, 0.08)
+    );
+
+  border: 1px solid rgba(139, 92, 246, 0.45);
+
+  color: #b79aff;
+  font-weight: 800;
+  font-size: 18px;
+
+  box-shadow:
+    inset 0 0 25px rgba(139, 92, 246, 0.08),
+    0 0 24px rgba(124, 58, 237, 0.08);
+}
+
+.quantlab-brand-name {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.quantlab-brand-subtitle {
+  margin-top: 1px;
+  color: var(--ql-text-muted);
+  font-size: 11px;
+}
+
+.quantlab-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quantlab-nav-item {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  gap: 11px;
+
+  min-height: 44px;
+  padding: 0 13px;
+
+  border-radius: 12px;
+
+  color: #aeb8cc;
+  font-size: 13px;
+  font-weight: 500;
+
+  transition:
+    background 160ms ease,
+    color 160ms ease,
+    transform 160ms ease,
+    border-color 160ms ease;
+}
+
+.quantlab-nav-item:hover {
+  color: white;
+  background: rgba(255, 255, 255, 0.045);
+  transform: translateX(2px);
+}
+
+.quantlab-nav-item-active {
+  color: white;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(37, 99, 235, 0.95),
+      rgba(124, 58, 237, 0.98)
+    );
+
+  box-shadow:
+    0 10px 26px rgba(87, 54, 220, 0.22);
+}
+
+.quantlab-nav-icon {
+  width: 20px;
+  text-align: center;
+  color: #a8b4d0;
+  font-size: 15px;
+}
+
+.quantlab-nav-item-active .quantlab-nav-icon {
+  color: white;
+}
+
+.quantlab-sidebar-section {
+  margin-top: 30px;
+  padding: 14px 12px;
+
+  border: 1px solid var(--ql-border);
+  border-radius: 14px;
+
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.quantlab-sidebar-section-title {
+  margin-bottom: 12px;
+
+  color: #f1f5ff;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.quantlab-health-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+
+  padding: 7px 0;
+
+  color: #b9c3d7;
+  font-size: 10px;
+}
+
+.quantlab-health-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--ql-green);
+
+  box-shadow:
+    0 0 0 4px rgba(34, 197, 94, 0.08),
+    0 0 12px rgba(34, 197, 94, 0.5);
+}
+
+.quantlab-health-status {
+  color: #73819a;
+  font-size: 9px;
+}
+
+.quantlab-sidebar-quote {
+  margin-top: auto;
+
+  padding: 15px 13px;
+
+  border: 1px solid var(--ql-border);
+  border-radius: 14px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(139, 92, 246, 0.045),
+      rgba(56, 189, 248, 0.02)
+    );
+
+  color: #8f9ab1;
+  font-size: 10px;
+}
+
+.quantlab-sidebar-quote p {
+  margin: 0 0 8px;
+}
+
+.quantlab-sidebar-quote span {
+  color: #63718b;
+}
+
+.quantlab-main {
+  grid-column: 2;
+  min-width: 0;
+  min-height: 100vh;
+}
+
+.quantlab-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+
+  min-height: 76px;
+
+  padding: 14px 24px;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(5, 8, 22, 0.94),
+      rgba(5, 8, 22, 0.8)
+    );
+
+  border-bottom: 1px solid var(--ql-border);
+
+  backdrop-filter: blur(20px);
+}
+
+.quantlab-topbar-eyebrow {
+  color: #9e7cff;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  font-weight: 700;
+}
+
+.quantlab-topbar-title {
+  margin-top: 1px;
+
+  font-size: 22px;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+}
+
+.quantlab-topbar-status {
+  display: flex;
+  gap: 14px;
+}
+
+.quantlab-status-block {
+  min-width: 112px;
+
+  padding: 7px 11px;
+
+  border-left: 1px solid rgba(99, 119, 165, 0.2);
+}
+
+.quantlab-status-label {
+  display: block;
+
+  margin-bottom: 3px;
+
+  color: #6d7890;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.quantlab-status-value,
+.quantlab-status-live {
+  color: #c9d3e7;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.quantlab-status-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  color: #39dc78;
+}
+
+.quantlab-status-dot {
+  width: 7px;
+  height: 7px;
+
+  border-radius: 999px;
+
+  background: var(--ql-green);
+
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.65);
+}
+
+.quantlab-content {
+  min-width: 0;
+
+  padding: 24px;
+
+  background:
+    radial-gradient(
+      circle at 25% 0%,
+      rgba(108, 56, 255, 0.05),
+      transparent 25%
+    );
+}
+
+.quantlab-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+
+  padding: 18px 24px 24px;
+
+  color: #5c6880;
+  font-size: 9px;
+}
+
+/* =========================================================
+   GENERIC WORKSTATION COMPONENT STYLING
+   ========================================================= */
+
+.quantlab-content h1 {
+  margin: 0;
+
+  font-size: clamp(28px, 4vw, 46px);
+  line-height: 1.05;
+  letter-spacing: -0.05em;
+}
+
+.quantlab-content h2 {
+  color: #f4f7fd;
+  letter-spacing: -0.025em;
+}
+
+.quantlab-content h3 {
+  color: #edf2fb;
+}
+
+.quantlab-content p {
+  color: var(--ql-text-soft);
+}
+
+.quantlab-content input,
+.quantlab-content select,
+.quantlab-content textarea {
+  color: #e8edf7;
+
+  background: rgba(6, 12, 25, 0.86);
+
+  border: 1px solid rgba(115, 135, 174, 0.25);
+  border-radius: 9px;
+
+  outline: none;
+
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background 150ms ease;
+}
+
+.quantlab-content input:focus,
+.quantlab-content select:focus,
+.quantlab-content textarea:focus {
+  border-color: rgba(139, 92, 246, 0.72);
+
+  box-shadow:
+    0 0 0 3px rgba(139, 92, 246, 0.1);
+
+  background: rgba(8, 15, 30, 0.96);
+}
+
+.quantlab-content button {
+  border-radius: 9px;
+}
+
+.quantlab-content table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.quantlab-content th {
+  color: #7e8ba5;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.055em;
+}
+
+.quantlab-content td {
+  color: #c8d1e2;
+}
+
+.quantlab-content th,
+.quantlab-content td {
+  border-bottom: 1px solid rgba(119, 138, 176, 0.11);
+}
+
+/* Generic card treatment for existing Tailwind-heavy pages */
+
+.quantlab-content [class*="rounded-"] {
+  border-color: var(--ql-border);
+}
+
+.quantlab-content [class*="border"] {
+  border-color: var(--ql-border);
+}
+
+.quantlab-content [class*="bg-white"] {
+  background: var(--ql-panel) !important;
+}
+
+.quantlab-content [class*="bg-slate-50"],
+.quantlab-content [class*="bg-gray-50"],
+.quantlab-content [class*="bg-zinc-50"] {
+  background: rgba(255, 255, 255, 0.025) !important;
+}
+
+.quantlab-content [class*="text-slate-900"],
+.quantlab-content [class*="text-gray-900"],
+.quantlab-content [class*="text-zinc-900"] {
+  color: var(--ql-text) !important;
+}
+
+.quantlab-content [class*="text-slate-700"],
+.quantlab-content [class*="text-gray-700"] {
+  color: var(--ql-text-soft) !important;
+}
+
+.quantlab-content [class*="text-slate-500"],
+.quantlab-content [class*="text-gray-500"] {
+  color: var(--ql-text-muted) !important;
+}
+
+/* =========================================================
+   REUSABLE V3 CLASSES
+   ========================================================= */
+
+.ql-page-header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+
+  margin-bottom: 20px;
+}
+
+.ql-page-kicker {
+  margin-bottom: 6px;
+
+  color: #a57fff;
+
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+}
+
+.ql-page-title {
+  margin: 0;
+
+  font-size: 30px;
+  font-weight: 750;
+  letter-spacing: -0.04em;
+}
+
+.ql-page-description {
+  max-width: 780px;
+  margin: 7px 0 0;
+
+  color: #8e9ab1 !important;
+
+  font-size: 12px;
+}
+
+.ql-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.ql-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ql-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ql-grid-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.ql-card {
+  min-width: 0;
+
+  padding: 16px;
+
+  border: 1px solid var(--ql-border);
+  border-radius: var(--ql-radius);
+
+  background:
+    linear-gradient(
+      155deg,
+      rgba(13, 23, 44, 0.94),
+      rgba(7, 14, 29, 0.93)
+    );
+
+  box-shadow: var(--ql-shadow);
+
+  overflow: hidden;
+}
+
+.ql-card-title {
+  color: #f3f5fa;
+
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.ql-card-subtitle {
+  margin-top: 4px;
+
+  color: #718099;
+
+  font-size: 10px;
+}
+
+.ql-kpi-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(auto-fit, minmax(130px, 1fr));
+
+  gap: 9px;
+
+  margin-bottom: 14px;
+}
+
+.ql-kpi {
+  min-height: 78px;
+
+  padding: 12px 14px;
+
+  border: 1px solid var(--ql-border);
+  border-radius: 13px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(15, 25, 47, 0.92),
+      rgba(8, 15, 30, 0.9)
+    );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.018),
+    0 10px 25px rgba(0, 0, 0, 0.16);
+}
+
+.ql-kpi-label {
+  color: #7f8aa0;
+
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.ql-kpi-value {
+  margin-top: 5px;
+
+  color: white;
+
+  font-size: 21px;
+  font-weight: 720;
+  letter-spacing: -0.035em;
+}
+
+.ql-kpi-detail {
+  margin-top: 2px;
+
+  color: #59677e;
+
+  font-size: 9px;
+}
+
+.ql-accent {
+  color: #aa80ff;
+}
+
+.ql-positive {
+  color: #2bd773;
+}
+
+.ql-negative {
+  color: #ff6363;
+}
+
+.ql-info {
+  color: #38bdf8;
+}
+
+.ql-chart-card {
+  min-height: 340px;
+}
+
+.ql-chart-large {
+  min-height: 440px;
+}
+
+.ql-divider {
+  height: 1px;
+
+  margin: 14px 0;
+
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(120, 140, 180, 0.15),
+      transparent
+    );
+}
+
+/* =========================================================
+   RECHARTS DARK MODE
+   ========================================================= */
+
+.recharts-wrapper {
+  font-size: 10px;
+}
+
+.recharts-cartesian-axis-tick-value {
+  fill: #75829a;
+}
+
+.recharts-cartesian-grid line {
+  stroke: rgba(125, 145, 184, 0.1);
+}
+
+.recharts-legend-item-text {
+  color: #aab4c7 !important;
+}
+
+.recharts-default-tooltip {
+  background:
+    rgba(7, 13, 27, 0.97) !important;
+
+  border:
+    1px solid rgba(121, 141, 182, 0.22) !important;
+
+  border-radius: 9px !important;
+
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.recharts-tooltip-label {
+  color: #f4f6fb !important;
+}
+
+/* =========================================================
+   MOBILE / SMALLER VIEWPORTS
+   ========================================================= */
+
+@media (max-width: 1100px) {
+  .quantlab-shell {
+    grid-template-columns: 78px minmax(0, 1fr);
+  }
+
+  .quantlab-sidebar {
+    width: 78px;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .quantlab-brand {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .quantlab-brand > div:last-child,
+  .quantlab-nav-item span:last-child,
+  .quantlab-sidebar-section,
+  .quantlab-sidebar-quote {
+    display: none;
+  }
+
+  .quantlab-nav-item {
+    justify-content: center;
+    padding: 0;
+  }
+
+  .quantlab-nav-icon {
+    width: auto;
+  }
+
+  .quantlab-main {
+    grid-column: 2;
+  }
+
+  .ql-grid-4,
+  .ql-grid-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .quantlab-shell {
+    display: block;
+  }
+
+  .quantlab-sidebar {
+    position: static;
+
+    width: 100%;
+    height: auto;
+
+    flex-direction: row;
+    align-items: center;
+
+    padding: 10px 14px;
+
+    border-right: 0;
+    border-bottom: 1px solid var(--ql-border);
+  }
+
+  .quantlab-brand {
+    padding: 0;
+    margin-right: 10px;
+  }
+
+  .quantlab-brand-mark {
+    width: 34px;
+    height: 34px;
+  }
+
+  .quantlab-sidebar-nav {
+    flex: 1;
+
+    flex-direction: row;
+    justify-content: flex-end;
+
+    overflow-x: auto;
+  }
+
+  .quantlab-nav-item {
+    min-width: 40px;
+    min-height: 38px;
+  }
+
+  .quantlab-main {
+    min-height: auto;
+  }
+
+  .quantlab-topbar {
+    position: static;
+
+    min-height: auto;
+
+    padding: 12px 16px;
+  }
+
+  .quantlab-topbar-status {
+    display: none;
+  }
+
+  .quantlab-content {
+    padding: 16px;
+  }
+
+  .quantlab-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .ql-page-header {
+    display: block;
+  }
+
+  .ql-grid-2,
+  .ql-grid-3,
+  .ql-grid-4 {
+    grid-template-columns: 1fr;
+  }
 }

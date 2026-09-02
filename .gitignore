@@ -25,3 +25,5 @@ frontend/out/
 # Local experiment caches
 *.tmp
 *.log
+# Generated experiment figures
+backend/experiments/*.png

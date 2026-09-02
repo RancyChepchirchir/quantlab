@@ -42,6 +42,9 @@ import {
   OptionChainSnapshot,
 } from "@/lib/api/marketData";
 
+import ImpliedVolatilitySurface3D from "@/components/volatility/ImpliedVolatilitySurface3D";
+import SSVITotalVarianceSurface3D from "@/components/volatility/SSVITotalVarianceSurface3D";
+import VolatilityKpiStrip from "@/components/volatility/VolatilityKpiStrip";
 
 const DEFAULT_QUOTES: VolatilityQuoteInput[] = [
   {
@@ -302,6 +305,11 @@ export default function VolatilityLabPage() {
   ] = useState<
     MarketDataApiError | null
   >(null);
+
+  const [
+    quoteInspectorOpen,
+    setQuoteInspectorOpen,
+    ] = useState(false);
 
 
   function clearCalibrationResults() {
@@ -893,6 +901,15 @@ export default function VolatilityLabPage() {
         )
       : null;
 
+  const inputQuoteCount =
+    calibrated.length +
+    rejectedQuotes.length;
+
+  const ssviRmse =
+    ssviSurface?.available &&
+    ssviSurface.parameters
+        ? ssviSurface.parameters.rmse
+        : null;
 
   const termStructureData =
     useMemo(
@@ -1456,515 +1473,471 @@ const ssviButterflyWarningCount =
 
         </header>
 
+        <VolatilityKpiStrip
+            inputCount={inputQuoteCount}
+            calibratedCount={calibrated.length}
+            rejectedCount={rejectedQuotes.length}
+            minIv={minIv}
+            maxIv={maxIv}
+            atmIv={
+                atmQuote
+                ? atmQuote.implied_volatility_percent
+                : null
+            }
+            ssviRmse={ssviRmse}
+            />
 
         <form
-          onSubmit={
-            handleSubmit
-          }
-          className="mb-12 rounded-2xl border border-zinc-800 bg-zinc-900 p-6"
+        onSubmit={handleSubmit}
+        className="mb-12"
         >
+        <section className="ql-card">
+            <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
+            <div>
+                <p className="ql-page-kicker">
+                Market Configuration
+                </p>
 
-          <section>
+                <h2 className="ql-card-title">
+                Calibration Environment
+                </h2>
 
-            <p className="text-sm uppercase tracking-[0.2em] text-zinc-500">
-              Market inputs
-            </p>
-
-            <div className="mt-4 grid gap-4 md:grid-cols-3">
-
-              <NumberInput
-                label="Spot"
-                value={
-                  spot
-                }
-                onChange={
-                  setSpot
-                }
-              />
-
-              <NumberInput
-                label="Risk-free rate"
-                value={
-                  rate
-                }
-                step="0.01"
-                onChange={
-                  setRate
-                }
-              />
-
-              <NumberInput
-                label="Dividend yield"
-                value={
-                  dividendYield
-                }
-                step="0.01"
-                onChange={
-                  setDividendYield
-                }
-              />
-
+                <p className="ql-card-subtitle">
+                Define the market state manually or load an
+                end-of-day option-chain snapshot.
+                </p>
             </div>
 
-          </section>
+            <div className="flex flex-wrap gap-2">
+                {marketStatus && marketSnapshot && (
+                <StatusBadge
+                    warning={
+                    marketStatus.kind === "cached"
+                    }
+                    warningText="Cached"
+                    okText="Fresh"
+                />
+                )}
 
+                <span className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-400">
+                {quotes.length} quotes
+                </span>
+            </div>
+            </div>
 
-          <section className="mt-8 rounded-xl border border-zinc-800 bg-zinc-950/40 p-5">
+            <div className="grid gap-4 lg:grid-cols-4">
+            <NumberInput
+                label="Spot"
+                value={spot}
+                onChange={setSpot}
+            />
 
-            <p className="text-sm uppercase tracking-[0.2em] text-zinc-500">
-              Market data
-            </p>
+            <NumberInput
+                label="Risk-free rate"
+                value={rate}
+                step="0.01"
+                onChange={setRate}
+            />
 
-            <h2 className="mt-1 text-xl font-semibold">
-              Load option chain
-            </h2>
+            <NumberInput
+                label="Dividend yield"
+                value={dividendYield}
+                step="0.01"
+                onChange={setDividendYield}
+            />
 
-            <p className="mt-2 text-sm leading-6 text-zinc-500">
-              Import end-of-day option
-              contracts from Massive using
-              QuantLab&apos;s backend cache
-              and provider cooldown controls.
-            </p>
-
-
-            <div className="mt-5 grid gap-4 md:grid-cols-[1fr_auto_auto_auto]">
-
-              <label>
-
+            <label>
                 <span className="mb-2 block text-sm text-zinc-400">
-                  Underlying symbol
+                Underlying symbol
                 </span>
 
                 <input
-                  value={
-                    symbol
-                  }
-                  onChange={(
-                    event
-                  ) =>
+                value={symbol}
+                onChange={(event) =>
                     setSymbol(
-                      event
-                        .target
-                        .value
-                        .toUpperCase()
+                    event.target.value.toUpperCase()
                     )
-                  }
-                  placeholder="SPY"
-                  className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none focus:border-emerald-400"
+                }
+                placeholder="SPY"
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 outline-none focus:border-cyan-400"
+                />
+            </label>
+            </div>
+
+            <div className="ql-divider" />
+
+            <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap gap-3">
+                <button
+                type="button"
+                onClick={() =>
+                    loadMarketChain(false)
+                }
+                disabled={
+                    marketLoading ||
+                    retryBlocked
+                }
+                className="rounded-xl border border-cyan-500/40 bg-cyan-500/10 px-5 py-3 text-sm font-semibold text-cyan-200 transition hover:border-cyan-400 hover:bg-cyan-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                {marketLoading
+                    ? "Loading..."
+                    : retryBlocked
+                    ? `Retry in ${retryLabel}`
+                    : "Load market data"}
+                </button>
+
+                <button
+                type="button"
+                onClick={() =>
+                    loadMarketChain(true)
+                }
+                disabled={marketLoading}
+                title="Bypass QuantLab market-data caches and contact the provider directly."
+                className="rounded-xl border border-zinc-700 px-5 py-3 text-sm font-semibold text-zinc-300 transition hover:border-amber-400 hover:text-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                Refresh provider
+                </button>
+
+                <button
+                type="button"
+                onClick={loadDemoQuotes}
+                className="rounded-xl border border-zinc-700 px-5 py-3 text-sm font-semibold text-zinc-300 transition hover:border-violet-400 hover:text-violet-300"
+                >
+                Load demo
+                </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-500">
+                <span>
+                Source{" "}
+                <strong className="font-medium text-zinc-300">
+                    {marketSnapshot?.source ?? "Manual"}
+                </strong>
+                </span>
+
+                <span>
+                Contracts{" "}
+                <strong className="font-medium text-zinc-300">
+                    {marketSnapshot
+                    ? (
+                        marketSnapshot.returned_quote_count ??
+                        marketSnapshot.quotes.length
+                        ).toString()
+                    : quotes.length.toString()}
+                </strong>
+                </span>
+
+                <span>
+                Status{" "}
+                <strong className="font-medium text-zinc-300">
+                    {marketLoading
+                    ? "Loading"
+                    : marketStatus
+                        ? marketStatus.kind === "cached"
+                        ? "Cached"
+                        : "Ready"
+                        : "Manual"}
+                </strong>
+                </span>
+            </div>
+            </div>
+
+            {marketStatus && marketSnapshot && (
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <Metric
+                label="Source"
+                value={marketSnapshot.source}
                 />
 
-              </label>
+                <Metric
+                label="Contracts"
+                value={(
+                    marketSnapshot.returned_quote_count ??
+                    marketSnapshot.quotes.length
+                ).toString()}
+                />
 
-
-              <button
-                type="button"
-                onClick={() =>
-                  loadMarketChain(
-                    false
-                  )
+                <Metric
+                label="Strikes / expiry"
+                value={
+                    marketSnapshot.requested_strikes_per_expiry != null
+                    ? marketSnapshot.requested_strikes_per_expiry.toString()
+                    : "—"
                 }
-                disabled={
-                  marketLoading
-                  || retryBlocked
+                />
+
+                <Metric
+                label="Cache TTL"
+                value={
+                    marketSnapshot.cache_ttl_seconds != null
+                    ? `${marketSnapshot.cache_ttl_seconds}s`
+                    : "—"
                 }
-                className="self-end rounded-xl border border-zinc-700 px-5 py-3 font-semibold transition hover:border-emerald-400 hover:text-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {marketLoading
-                  ? "Loading..."
-                  : retryBlocked
-                    ? `Retry in ${retryLabel}`
-                    : "Load market chain"}
-              </button>
-
-
-              <button
-                type="button"
-                onClick={() =>
-                  loadMarketChain(
-                    true
-                  )
-                }
-                disabled={
-                  marketLoading
-                }
-                title="Bypass QuantLab market-data caches and contact the provider directly."
-                className="self-end rounded-xl border border-zinc-700 px-5 py-3 font-semibold transition hover:border-amber-400 hover:text-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Refresh provider
-              </button>
-
-
-              <button
-                type="button"
-                onClick={
-                  loadDemoQuotes
-                }
-                className="self-end rounded-xl border border-zinc-700 px-5 py-3 font-semibold transition hover:border-blue-400 hover:text-blue-300"
-              >
-                Demo
-              </button>
-
+                />
             </div>
-
-
-            {marketStatus
-              && marketSnapshot
-              && (
-                <div className="mt-5 rounded-xl border border-zinc-800 bg-zinc-900/60 p-5">
-
-                  <div className="flex flex-wrap items-center gap-3">
-
-                    <StatusBadge
-                      warning={
-                        marketStatus.kind
-                        === "cached"
-                      }
-                      warningText="Cached"
-                      okText="Fresh"
-                    />
-
-                    <span className="text-sm text-zinc-400">
-                      {marketStatus
-                        .description}
-                    </span>
-
-                  </div>
-
-
-                  <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-
-                    <Metric
-                      label="Source"
-                      value={
-                        marketSnapshot
-                          .source
-                      }
-                    />
-
-                    <Metric
-                      label="Contracts"
-                      value={
-                        (
-                          marketSnapshot
-                            .returned_quote_count
-                          ?? marketSnapshot
-                            .quotes
-                            .length
-                        ).toString()
-                      }
-                    />
-
-                    <Metric
-                      label="Strikes / expiry"
-                      value={
-                        marketSnapshot
-                          .requested_strikes_per_expiry
-                        != null
-                          ? marketSnapshot
-                              .requested_strikes_per_expiry
-                              .toString()
-                          : "—"
-                      }
-                    />
-
-                    <Metric
-                      label="Cache TTL"
-                      value={
-                        marketSnapshot
-                          .cache_ttl_seconds
-                        != null
-                          ? `${marketSnapshot
-                              .cache_ttl_seconds}s`
-                          : "—"
-                      }
-                    />
-
-                  </div>
-
-
-                  {marketSnapshot
-                    .selected_expiries
-                    ?.length
-                    ? (
-                      <div className="mt-5">
-
-                        <p className="text-xs uppercase tracking-[0.15em] text-zinc-500">
-                          Selected expiries
-                        </p>
-
-                        <div className="mt-2 flex flex-wrap gap-2">
-
-                          {marketSnapshot
-                            .selected_expiries
-                            .map(
-                              (
-                                expiry
-                              ) => (
-                                <span
-                                  key={
-                                    expiry
-                                  }
-                                  className="rounded-full border border-zinc-700 px-3 py-1 font-mono text-xs text-zinc-300"
-                                >
-                                  {expiry}
-                                </span>
-                              )
-                            )}
-
-                        </div>
-
-                      </div>
-                    )
-                    : null}
-
-                </div>
-              )}
-
-
-            {marketError && (
-              <div className="mt-5 rounded-xl border border-amber-900/50 bg-amber-950/20 p-5">
-
-                <div className="flex flex-wrap items-center gap-3">
-
-                  <StatusBadge
-                    warning
-                    warningText={
-                      marketError.status
-                      === 429
-                        ? "Rate limited"
-                        : marketError.status
-                          === 403
-                          ? "Provider access"
-                          : "Provider error"
-                    }
-                    okText="OK"
-                  />
-
-                  {marketError.cached && (
-                    <span className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-400">
-                      Cached provider state
-                    </span>
-                  )}
-
-                  {marketError.retryable && (
-                    <span className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-400">
-                      Retryable
-                    </span>
-                  )}
-
-                </div>
-
-                <p className="mt-4 text-sm leading-6 text-amber-200">
-                  {marketError.message}
-                </p>
-
-                {marketError
-                  .retryAfterSeconds
-                  != null
-                  && (
-                    <p className="mt-2 text-xs text-zinc-500">
-                      QuantLab cooldown remaining:{" "}
-
-                      {Math.max(
-                        1,
-                        Math.ceil(
-                          marketError
-                            .retryAfterSeconds
-                        )
-                      )}
-
-                      {" "}seconds.
-                    </p>
-                  )}
-
-              </div>
             )}
 
-          </section>
+            {marketSnapshot?.selected_expiries?.length ? (
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+                <span className="mr-1 text-xs uppercase tracking-[0.15em] text-zinc-500">
+                Expiries
+                </span>
 
+                {marketSnapshot.selected_expiries.map(
+                (expiry) => (
+                    <span
+                    key={expiry}
+                    className="rounded-full border border-zinc-700 px-3 py-1 font-mono text-xs text-zinc-300"
+                    >
+                    {expiry}
+                    </span>
+                )
+                )}
+            </div>
+            ) : null}
 
-          <section className="mt-8">
+            {marketError && (
+            <div className="mt-5 rounded-xl border border-amber-900/50 bg-amber-950/20 p-4">
+                <div className="flex flex-wrap items-center gap-3">
+                <StatusBadge
+                    warning
+                    warningText={
+                    marketError.status === 429
+                        ? "Rate limited"
+                        : marketError.status === 403
+                        ? "Provider access"
+                        : "Provider error"
+                    }
+                    okText="OK"
+                />
 
-            <div className="mb-4 flex items-center justify-between gap-4">
+                {marketError.cached && (
+                    <span className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-400">
+                    Cached provider state
+                    </span>
+                )}
 
-              <div>
+                {marketError.retryable && (
+                    <span className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-400">
+                    Retryable
+                    </span>
+                )}
+                </div>
 
-                <p className="text-sm uppercase tracking-[0.2em] text-zinc-500">
-                  Option chain
+                <p className="mt-3 text-sm leading-6 text-amber-200">
+                {marketError.message}
                 </p>
 
-                <h2 className="mt-1 text-xl font-semibold">
-                  Market quotes
-                </h2>
-
-              </div>
-
-              <button
-                type="button"
-                onClick={
-                  addQuote
-                }
-                className="rounded-lg border border-zinc-700 px-3 py-2 text-sm text-zinc-300 transition hover:border-emerald-400 hover:text-emerald-300"
-              >
-                + Add quote
-              </button>
-
-            </div>
-
-
-            <div className="overflow-x-auto rounded-xl border border-zinc-800">
-
-              <table className="w-full min-w-[700px] text-sm">
-
-                <thead className="bg-zinc-950 text-left text-zinc-500">
-
-                  <tr>
-
-                    <th className="px-4 py-3">
-                      Strike
-                    </th>
-
-                    <th className="px-4 py-3">
-                      Maturity
-                    </th>
-
-                    <th className="px-4 py-3">
-                      Market price
-                    </th>
-
-                    <th className="px-4 py-3">
-                      Type
-                    </th>
-
-                    <th className="px-4 py-3">
-                      Remove
-                    </th>
-
-                  </tr>
-
-                </thead>
-
-                <tbody>
-
-                  {quotes.map(
-                    (
-                      quote,
-                      index
-                    ) => (
-                      <tr
-                        key={
-                          `${quote.strike}-${quote.maturity}-${quote.option_type}-${index}`
-                        }
-                        className="border-t border-zinc-800"
-                      >
-
-                        <EditableNumber
-                          value={
-                            quote.strike
-                          }
-                          onChange={(
-                            value
-                          ) =>
-                            updateQuote(
-                              index,
-                              "strike",
-                              value
-                            )
-                          }
-                        />
-
-                        <EditableNumber
-                          value={
-                            quote.maturity
-                          }
-                          step="0.01"
-                          onChange={(
-                            value
-                          ) =>
-                            updateQuote(
-                              index,
-                              "maturity",
-                              value
-                            )
-                          }
-                        />
-
-                        <EditableNumber
-                          value={
-                            quote.market_price
-                          }
-                          step="0.01"
-                          onChange={(
-                            value
-                          ) =>
-                            updateQuote(
-                              index,
-                              "market_price",
-                              value
-                            )
-                          }
-                        />
-
-                        <td className="px-4 py-3">
-
-                          <select
-                            value={
-                              quote.option_type
-                            }
-                            onChange={(
-                              event
-                            ) =>
-                              updateOptionType(
-                                index,
-                                event
-                                  .target
-                                  .value as
-                                  | "call"
-                                  | "put"
-                              )
-                            }
-                            className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2"
-                          >
-
-                            <option value="call">
-                              Call
-                            </option>
-
-                            <option value="put">
-                              Put
-                            </option>
-
-                          </select>
-
-                        </td>
-
-                        <td className="px-4 py-3">
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              removeQuote(
-                                index
-                              )
-                            }
-                            className="text-zinc-500 hover:text-red-400"
-                          >
-                            Remove
-                          </button>
-
-                        </td>
-
-                      </tr>
+                {marketError.retryAfterSeconds != null && (
+                <p className="mt-2 text-xs text-zinc-500">
+                    QuantLab cooldown remaining:{" "}
+                    {Math.max(
+                    1,
+                    Math.ceil(
+                        marketError.retryAfterSeconds
                     )
-                  )}
-
-                </tbody>
-
-              </table>
-
+                    )}{" "}
+                    seconds.
+                </p>
+                )}
             </div>
+            )}
+        </section>
 
-          </section>
+
+        <section className="mt-5 rounded-2xl border border-zinc-800 bg-zinc-950/30">
+            <button
+                type="button"
+                onClick={() =>
+                setQuoteInspectorOpen(
+                    (current) => !current
+                )
+                }
+                className="flex w-full items-center justify-between gap-5 px-5 py-4 text-left"
+            >
+                <div className="flex min-w-0 items-center gap-4">
+                <div
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-violet-500/30 bg-violet-500/10 font-mono text-sm text-violet-300"
+                >
+                    Q
+                </div>
+
+                <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                    <p className="text-sm font-semibold text-zinc-200">
+                        Quote Inspector
+                    </p>
+
+                    <span className="rounded-full border border-zinc-700 px-2.5 py-0.5 font-mono text-xs text-zinc-400">
+                        {quotes.length} quotes
+                    </span>
+                    </div>
+
+                    <p className="mt-1 text-xs text-zinc-500">
+                    Inspect or edit strikes, maturities,
+                    market prices and option types.
+                    </p>
+                </div>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-3">
+                <span className="hidden text-xs text-zinc-500 sm:inline">
+                    {quoteInspectorOpen
+                    ? "Hide quotes"
+                    : "Inspect quotes"}
+                </span>
+
+                <span
+                    className={`text-lg text-zinc-400 transition-transform ${
+                    quoteInspectorOpen
+                        ? "rotate-180"
+                        : ""
+                    }`}
+                >
+                    ⌄
+                </span>
+                </div>
+            </button>
+
+            {quoteInspectorOpen && (
+                <div className="border-t border-zinc-800 px-5 pb-5 pt-4">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                    <p className="text-xs uppercase tracking-[0.16em] text-zinc-500">
+                        Calibration Dataset
+                    </p>
+
+                    <p className="mt-1 text-sm text-zinc-400">
+                        These are the option prices supplied
+                        to the implied-volatility inversion.
+                    </p>
+                    </div>
+
+                    <button
+                    type="button"
+                    onClick={addQuote}
+                    className="rounded-lg border border-violet-500/40 bg-violet-500/10 px-3 py-2 text-sm text-violet-200 transition hover:border-violet-400 hover:bg-violet-500/15"
+                    >
+                    + Add quote
+                    </button>
+                </div>
+
+                <div className="overflow-x-auto rounded-xl border border-zinc-800">
+                    <table className="w-full min-w-[700px] text-sm">
+                    <thead className="bg-zinc-950/80 text-left text-zinc-500">
+                        <tr>
+                        <th className="px-4 py-3">
+                            Strike
+                        </th>
+
+                        <th className="px-4 py-3">
+                            Maturity
+                        </th>
+
+                        <th className="px-4 py-3">
+                            Market price
+                        </th>
+
+                        <th className="px-4 py-3">
+                            Type
+                        </th>
+
+                        <th className="px-4 py-3">
+                            Remove
+                        </th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {quotes.map(
+                        (quote, index) => (
+                            <tr
+                            key={`${quote.strike}-${quote.maturity}-${quote.option_type}-${index}`}
+                            className="border-t border-zinc-800"
+                            >
+                            <EditableNumber
+                                value={quote.strike}
+                                onChange={(value) =>
+                                updateQuote(
+                                    index,
+                                    "strike",
+                                    value
+                                )
+                                }
+                            />
+
+                            <EditableNumber
+                                value={quote.maturity}
+                                step="0.01"
+                                onChange={(value) =>
+                                updateQuote(
+                                    index,
+                                    "maturity",
+                                    value
+                                )
+                                }
+                            />
+
+                            <EditableNumber
+                                value={
+                                quote.market_price
+                                }
+                                step="0.01"
+                                onChange={(value) =>
+                                updateQuote(
+                                    index,
+                                    "market_price",
+                                    value
+                                )
+                                }
+                            />
+
+                            <td className="px-4 py-3">
+                                <select
+                                value={
+                                    quote.option_type
+                                }
+                                onChange={(event) =>
+                                    updateOptionType(
+                                    index,
+                                    event.target
+                                        .value as
+                                        | "call"
+                                        | "put"
+                                    )
+                                }
+                                className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2"
+                                >
+                                <option value="call">
+                                    Call
+                                </option>
+
+                                <option value="put">
+                                    Put
+                                </option>
+                                </select>
+                            </td>
+
+                            <td className="px-4 py-3">
+                                <button
+                                type="button"
+                                onClick={() =>
+                                    removeQuote(index)
+                                }
+                                className="text-zinc-500 transition hover:text-red-400"
+                                >
+                                Remove
+                                </button>
+                            </td>
+                            </tr>
+                        )
+                        )}
+                    </tbody>
+                    </table>
+                </div>
+                </div>
+            )}
+            </section>
 
 
           <button
@@ -1972,7 +1945,7 @@ const ssviButterflyWarningCount =
             disabled={
               loading
             }
-            className="mt-6 rounded-xl bg-emerald-400 px-5 py-3 font-semibold text-zinc-950 disabled:opacity-50"
+            className="mt-5 w-full rounded-xl border border-violet-400/40 bg-gradient-to-r from-violet-500/90 to-cyan-500/90 px-5 py-3.5 font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
           >
             {loading
               ? "Calibrating..."
@@ -1988,6 +1961,24 @@ const ssviButterflyWarningCount =
 
         </form>
 
+        {(surfaceGrid || ssviSurface) && (
+        <div className="mb-12">
+            <div className="ql-grid ql-grid-2">
+            {surfaceGrid && (
+                <ImpliedVolatilitySurface3D
+                surfaceGrid={surfaceGrid}
+                />
+            )}
+
+            {ssviSurface &&
+                ssviSurface.available && (
+                <SSVITotalVarianceSurface3D
+                    ssviSurface={ssviSurface}
+                />
+                )}
+            </div>
+        </div>
+        )}
 
         {calibrated.length > 0 && (
           <>
@@ -2091,214 +2082,284 @@ const ssviButterflyWarningCount =
 
 
             <section className="mb-12">
+            <div className="mb-6">
+                <p className="ql-page-kicker">
+                Surface Cross-Sections
+                </p>
 
-              <h2 className="mb-6 text-3xl font-semibold">
-                European vs American volatility smiles
-              </h2>
+                <h2 className="ql-card-title">
+                Volatility geometry in two dimensions
+                </h2>
 
-              <ChartPanel>
+                <p className="ql-card-subtitle">
+                Inspect fixed-maturity smiles, the ATM term structure,
+                and how volatility skew evolves across maturities.
+                </p>
+            </div>
 
-                <LineChart
-                  data={
-                    smileData
-                  }
+            <div className="ql-grid ql-grid-2">
+                <section
+                className="ql-chart-card"
+                style={{
+                    gridColumn: "1 / -1",
+                }}
                 >
+                <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                    <p className="text-xs uppercase tracking-[0.16em] text-violet-400">
+                        Strike Cross-Sections
+                    </p>
 
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    opacity={
-                      0.15
-                    }
-                  />
+                    <h3 className="mt-1 text-lg font-semibold text-zinc-100">
+                        European vs American volatility smiles
+                    </h3>
 
-                  <XAxis
-                    dataKey="strike"
-                  />
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500">
+                        Each curve is a fixed-maturity slice through the
+                        calibrated volatility surface. Solid curves show
+                        Black–Scholes implied volatility; dashed curves show
+                        American implied volatility.
+                    </p>
+                    </div>
 
-                  <YAxis />
+                    <div className="flex flex-wrap gap-2">
+                    <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-xs text-violet-200">
+                        {maturities.length} maturities
+                    </span>
 
-                  <Tooltip />
+                    <span className="rounded-full border border-zinc-700 px-3 py-1 text-xs text-zinc-400">
+                        Strike × IV
+                    </span>
+                    </div>
+                </div>
 
-                  <Legend />
+                <ChartPanel>
+                    <LineChart data={smileData}>
+                    <CartesianGrid
+                        strokeDasharray="3 3"
+                        opacity={0.15}
+                    />
 
-                  {maturities.map(
-                    (
-                      maturity,
-                      index
-                    ) => {
-                      const key =
-                        maturity.toFixed(
-                          4
-                        );
+                    <XAxis
+                        dataKey="strike"
+                        label={{
+                        value: "Strike K",
+                        position: "insideBottom",
+                        offset: -4,
+                        }}
+                    />
 
-                      const palette = [
-                        "#34d399",
-                        "#60a5fa",
-                        "#fbbf24",
-                        "#f87171",
-                        "#c084fc",
-                      ];
+                    <YAxis
+                        label={{
+                        value: "Implied volatility (%)",
+                        angle: -90,
+                        position: "insideLeft",
+                        }}
+                    />
 
-                      const stroke =
-                        palette[
-                          index
-                          % palette.length
+                    <Tooltip />
+
+                    <Legend />
+
+                    {maturities.map(
+                        (
+                        maturity,
+                        index
+                        ) => {
+                        const key =
+                            maturity.toFixed(4);
+
+                        const palette = [
+                            "#34d399",
+                            "#60a5fa",
+                            "#fbbf24",
+                            "#f87171",
+                            "#c084fc",
                         ];
 
-                      return (
-                        <Fragment
-                          key={
-                            key
-                          }
-                        >
+                        const stroke =
+                            palette[
+                            index %
+                                palette.length
+                            ];
 
-                          <Line
-                            type="monotone"
-                            dataKey={
-                              `BS T=${key}`
-                            }
-                            name={
-                              `BS T=${maturity.toFixed(
+                        return (
+                            <Fragment key={key}>
+                            <Line
+                                type="monotone"
+                                dataKey={`BS T=${key}`}
+                                name={`BS T=${maturity.toFixed(
                                 3
-                              )}`
-                            }
-                            stroke={
-                              stroke
-                            }
-                            strokeWidth={
-                              2
-                            }
-                            dot
-                            connectNulls
-                          />
+                                )}`}
+                                stroke={stroke}
+                                strokeWidth={2}
+                                dot
+                                connectNulls
+                            />
 
-                          <Line
-                            type="monotone"
-                            dataKey={
-                              `AM T=${key}`
-                            }
-                            name={
-                              `American T=${maturity.toFixed(
+                            <Line
+                                type="monotone"
+                                dataKey={`AM T=${key}`}
+                                name={`American T=${maturity.toFixed(
                                 3
-                              )}`
-                            }
-                            stroke={
-                              stroke
-                            }
-                            strokeWidth={
-                              2
-                            }
-                            strokeDasharray="6 4"
-                            dot
-                            connectNulls
-                          />
+                                )}`}
+                                stroke={stroke}
+                                strokeWidth={2}
+                                strokeDasharray="6 4"
+                                dot
+                                connectNulls
+                            />
+                            </Fragment>
+                        );
+                        }
+                    )}
+                    </LineChart>
+                </ChartPanel>
 
-                        </Fragment>
-                      );
-                    }
-                  )}
+                <div className="ql-divider" />
 
-                </LineChart>
+                <p className="ql-card-subtitle">
+                    For a fixed maturity T
+                    <sub>j</sub>, this chart displays the slice{" "}
+                    σ
+                    <sub>imp</sub>
+                    (K, T
+                    <sub>j</sub>
+                    ). Differences between the solid and dashed curves
+                    reveal the effect of American early-exercise modelling
+                    on recovered implied volatility.
+                </p>
+                </section>
 
-              </ChartPanel>
+                {termStructure.length > 0 && (
+                <section className="ql-chart-card">
+                    <div className="mb-5">
+                    <p className="text-xs uppercase tracking-[0.16em] text-cyan-400">
+                        Maturity Cross-Section
+                    </p>
 
+                    <h3 className="mt-1 text-lg font-semibold text-zinc-100">
+                        ATM implied-volatility term structure
+                    </h3>
+
+                    <p className="mt-2 text-sm leading-6 text-zinc-500">
+                        Tracks the near-ATM volatility level as maturity
+                        changes.
+                    </p>
+                    </div>
+
+                    <ChartPanel>
+                    <LineChart data={termStructureData}>
+                        <CartesianGrid
+                        strokeDasharray="3 3"
+                        opacity={0.15}
+                        />
+
+                        <XAxis
+                        dataKey="maturity"
+                        label={{
+                            value: "Maturity T",
+                            position: "insideBottom",
+                            offset: -4,
+                        }}
+                        />
+
+                        <YAxis
+                        label={{
+                            value: "ATM IV (%)",
+                            angle: -90,
+                            position: "insideLeft",
+                        }}
+                        />
+
+                        <Tooltip />
+
+                        <Line
+                        type="monotone"
+                        dataKey="atmIv"
+                        name="ATM IV"
+                        stroke="#34d399"
+                        strokeWidth={2}
+                        dot
+                        />
+                    </LineChart>
+                    </ChartPanel>
+
+                    <div className="ql-divider" />
+
+                    <p className="ql-card-subtitle">
+                    This is the maturity direction of the volatility
+                    geometry: T ↦ σ
+                    <sub>ATM</sub>
+                    (T).
+                    </p>
+                </section>
+                )}
+
+                {skewDiagnostics.length > 0 && (
+                <section className="ql-chart-card">
+                    <div className="mb-5">
+                    <p className="text-xs uppercase tracking-[0.16em] text-blue-400">
+                        Surface Slope
+                    </p>
+
+                    <h3 className="mt-1 text-lg font-semibold text-zinc-100">
+                        Volatility skew by maturity
+                    </h3>
+
+                    <p className="mt-2 text-sm leading-6 text-zinc-500">
+                        Summarises how sharply implied volatility changes
+                        across strike for each maturity.
+                    </p>
+                    </div>
+
+                    <ChartPanel>
+                    <LineChart data={skewData}>
+                        <CartesianGrid
+                        strokeDasharray="3 3"
+                        opacity={0.15}
+                        />
+
+                        <XAxis
+                        dataKey="maturity"
+                        label={{
+                            value: "Maturity T",
+                            position: "insideBottom",
+                            offset: -4,
+                        }}
+                        />
+
+                        <YAxis
+                        label={{
+                            value: "Skew",
+                            angle: -90,
+                            position: "insideLeft",
+                        }}
+                        />
+
+                        <Tooltip />
+
+                        <Line
+                        type="monotone"
+                        dataKey="skew"
+                        name="Volatility skew"
+                        stroke="#60a5fa"
+                        strokeWidth={2}
+                        dot
+                        />
+                    </LineChart>
+                    </ChartPanel>
+
+                    <div className="ql-divider" />
+
+                    <p className="ql-card-subtitle">
+                    Skew is a discrete diagnostic of the strike-direction
+                    slope of the implied-volatility surface.
+                    </p>
+                </section>
+                )}
+            </div>
             </section>
-
-
-            {termStructure.length > 0 && (
-              <section className="mb-12">
-
-                <h2 className="mb-6 text-3xl font-semibold">
-                  ATM implied volatility by maturity
-                </h2>
-
-                <ChartPanel>
-
-                  <LineChart
-                    data={
-                      termStructureData
-                    }
-                  >
-
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      opacity={
-                        0.15
-                      }
-                    />
-
-                    <XAxis
-                      dataKey="maturity"
-                    />
-
-                    <YAxis />
-
-                    <Tooltip />
-
-                    <Line
-                      type="monotone"
-                      dataKey="atmIv"
-                      stroke="#34d399"
-                      strokeWidth={
-                        2
-                      }
-                      dot
-                    />
-
-                  </LineChart>
-
-                </ChartPanel>
-
-              </section>
-            )}
-
-
-            {skewDiagnostics.length > 0 && (
-              <section className="mb-12">
-
-                <h2 className="mb-6 text-3xl font-semibold">
-                  Volatility skew by maturity
-                </h2>
-
-                <ChartPanel>
-
-                  <LineChart
-                    data={
-                      skewData
-                    }
-                  >
-
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      opacity={
-                        0.15
-                      }
-                    />
-
-                    <XAxis
-                      dataKey="maturity"
-                    />
-
-                    <YAxis />
-
-                    <Tooltip />
-
-                    <Line
-                      type="monotone"
-                      dataKey="skew"
-                      stroke="#60a5fa"
-                      strokeWidth={
-                        2
-                      }
-                      dot
-                    />
-
-                  </LineChart>
-
-                </ChartPanel>
-
-              </section>
-            )}
 
 
             {sviSurface

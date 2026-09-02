@@ -37,6 +37,10 @@ from app.api.market_data import (
     router as market_data_router,
 )
 
+from app.api.american_surface_atlas import (
+    router as american_surface_atlas_router,
+)
+
 
 app = FastAPI(
     title="QuantLab API",
@@ -112,4 +116,8 @@ app.include_router(
 
 app.include_router(
     market_data_router
+)
+
+app.include_router(
+    american_surface_atlas_router
 )
