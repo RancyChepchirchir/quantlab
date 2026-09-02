@@ -301,19 +301,9 @@ const mcConvergenceData =
       <div className="mx-auto max-w-7xl px-6 py-12">
 
         <header className="mb-12">
-          <div className="mb-3 flex items-center gap-3">
-            <span className="text-sm uppercase tracking-[0.3em] text-emerald-400">
-              QuantLab
-            </span>
-
-            <span className="text-zinc-700">
-              /
-            </span>
-
-            <span className="text-sm uppercase tracking-[0.2em] text-zinc-500">
-              Pricing Lab
-            </span>
-          </div>
+          <p className="mb-3 text-sm uppercase tracking-[0.3em] text-emerald-400">
+            QuantLab
+          </p>
 
           <h1 className="max-w-4xl text-4xl font-semibold tracking-tight md:text-6xl">
             Option pricing,
