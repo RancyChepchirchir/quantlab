@@ -100,7 +100,6 @@ export function QuantLabShell({ children }: QuantLabShellProps) {
                   active ? "quantlab-nav-item-active" : ""
                 }`}
               >
-                <span className="quantlab-nav-icon">{item.icon}</span>
                 <span>{item.label}</span>
               </Link>
             );
