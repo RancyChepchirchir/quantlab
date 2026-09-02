@@ -1,19 +1,23 @@
 import Link from "next/link";
 
 
-const links = [
+const navItems = [
   {
-    href: "/",
     label: "Pricing Lab",
+    href: "/",
   },
   {
-    href: "/research-lab",
-    label: "Research Lab",
-  },
-  {
-    href: "/volatility-lab",
     label: "Volatility Lab",
-},
+    href: "/volatility-lab",
+  },
+  {
+    label: "Surface Atlas",
+    href: "/surface-atlas",
+  },
+  {
+    label: "Research Lab",
+    href: "/research-lab",
+  },
 ];
 
 
@@ -33,7 +37,7 @@ export function QuantLabNav() {
         </Link>
 
         <div className="flex items-center gap-2">
-          {links.map(
+          {navItems.map(
             (link) => (
               <Link
                 key={link.href}

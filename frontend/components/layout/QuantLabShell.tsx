@@ -10,24 +10,20 @@ type QuantLabShellProps = {
 
 const navItems = [
   {
-    href: "/",
-    label: "Overview",
-    icon: "⌂",
-  },
-  {
-    href: "/",
     label: "Pricing Lab",
-    icon: "ƒ",
+    href: "/",
   },
   {
-    href: "/volatility-lab",
     label: "Volatility Lab",
-    icon: "∿",
+    href: "/volatility-lab",
   },
   {
-    href: "/research-lab",
+    label: "Surface Atlas",
+    href: "/surface-atlas",
+  },
+  {
     label: "Research Lab",
-    icon: "Σ",
+    href: "/research-lab",
   },
 ];
 
@@ -36,9 +32,43 @@ function isActive(pathname: string, href: string, label: string) {
     return pathname === "/" && false;
   }
 
-  if (href === "/") {
-    return pathname === "/";
-  }
+  if (label === "Surface Atlas") {
+    return (
+        <svg
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+        >
+        <path d="M4 17 9 12l4 3 7-8" />
+        <path d="M4 21h16" />
+        <path d="M4 3v18" />
+        <circle
+            cx="9"
+            cy="12"
+            r="1"
+            fill="currentColor"
+        />
+        <circle
+            cx="13"
+            cy="15"
+            r="1"
+            fill="currentColor"
+        />
+        <circle
+            cx="20"
+            cy="7"
+            r="1"
+            fill="currentColor"
+        />
+        </svg>
+    );
+    }
 
   return pathname.startsWith(href);
 }

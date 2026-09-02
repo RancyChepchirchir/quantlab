@@ -27,6 +27,12 @@ import BoundaryDistanceProfile
 import PinnErrorTopography
   from "@/components/research/PinnErrorTopography";
 
+import PinnErrorEvolutionAtlas
+  from "@/components/research/PinnErrorEvolutionAtlas";
+
+import LazyPlotSection
+  from "@/components/charts/LazyPlotSection";
+
 
 const Plot = dynamic(
   () => import("react-plotly.js"),
@@ -518,7 +524,6 @@ export default function AmericanSurfaceAtlas({
                 "linear-gradient(90deg, transparent, rgba(139,92,246,0.38), rgba(34,211,238,0.30), transparent)",
             }}
             />
-
             <PinnLearningDynamics
             data={data}
             />
@@ -586,10 +591,41 @@ export default function AmericanSurfaceAtlas({
                     "linear-gradient(90deg, transparent, rgba(244,63,94,0.42), rgba(34,211,238,0.30), transparent)",
                 }}
                 />
-
+                <LazyPlotSection
+                minHeight={650}
+                rootMargin="500px 0px"
+                unloadWhenHidden
+                >
                 <PinnErrorTopography
-                data={data}
+                    data={data}
                 />
+                </LazyPlotSection>
+            </>
+            )}
+        
+        {data.pinn_convergence.available && (
+            <>
+                <div
+                style={{
+                    height: 1,
+
+                    margin:
+                    "16px 0 5px",
+
+                    background:
+                    "linear-gradient(90deg, transparent, rgba(244,63,94,0.42), rgba(34,211,238,0.30), transparent)",
+                }}
+                />
+
+                <LazyPlotSection
+                minHeight={900}
+                rootMargin="500px 0px"
+                unloadWhenHidden
+                >
+                <PinnErrorEvolutionAtlas
+                    data={data}
+                />
+                </LazyPlotSection>
             </>
             )}
 

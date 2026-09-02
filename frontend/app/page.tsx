@@ -301,9 +301,19 @@ const mcConvergenceData =
       <div className="mx-auto max-w-7xl px-6 py-12">
 
         <header className="mb-12">
-          <p className="mb-3 text-sm uppercase tracking-[0.3em] text-emerald-400">
-            QuantLab
-          </p>
+          <div className="mb-3 flex items-center gap-3">
+            <span className="text-sm uppercase tracking-[0.3em] text-emerald-400">
+              QuantLab
+            </span>
+
+            <span className="text-zinc-700">
+              /
+            </span>
+
+            <span className="text-sm uppercase tracking-[0.2em] text-zinc-500">
+              Pricing Lab
+            </span>
+          </div>
 
           <h1 className="max-w-4xl text-4xl font-semibold tracking-tight md:text-6xl">
             Option pricing,
@@ -319,6 +329,107 @@ const mcConvergenceData =
             assumptions.
           </p>
         </header>
+
+        <div
+        className="
+          mb-8
+          overflow-hidden
+          rounded-2xl
+          border
+          border-cyan-400/20
+          bg-gradient-to-r
+          from-cyan-400/[0.06]
+          via-violet-400/[0.04]
+          to-transparent
+          p-5
+        "
+      >
+        <div
+          className="
+            flex
+            flex-col
+            gap-5
+            lg:flex-row
+            lg:items-center
+            lg:justify-between
+          "
+        >
+          <div>
+            <div
+              className="
+                mb-2
+                text-[11px]
+                font-semibold
+                uppercase
+                tracking-[0.18em]
+                text-cyan-300
+              "
+            >
+              Research Workstation
+            </div>
+
+            <h2
+              className="
+                text-lg
+                font-semibold
+                text-zinc-100
+              "
+            >
+              American Option Surface Atlas
+            </h2>
+
+            <p
+              className="
+                mt-2
+                max-w-3xl
+                text-sm
+                leading-6
+                text-zinc-400
+              "
+            >
+              Explore American put pricing
+              across the full state-time
+              domain. Compare CRR,
+              projected Crank–Nicolson and
+              PINN approximations, inspect
+              free-boundary geometry, and
+              follow the PINN error
+              landscape through training.
+            </p>
+          </div>
+
+          <Link
+            href="/surface-atlas"
+            className="
+              inline-flex
+              shrink-0
+              items-center
+              justify-center
+              gap-2
+              rounded-xl
+              border
+              border-cyan-300/25
+              bg-cyan-300/10
+              px-5
+              py-3
+              text-sm
+              font-semibold
+              text-cyan-100
+              transition
+              hover:border-cyan-300/40
+              hover:bg-cyan-300/15
+            "
+          >
+            Explore Surface Atlas
+
+            <span
+              aria-hidden="true"
+            >
+              →
+            </span>
+          </Link>
+        </div>
+      </div>
 
 
         <div className="grid gap-8 lg:grid-cols-[360px_1fr]">
